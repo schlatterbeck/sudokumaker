@@ -53,7 +53,8 @@ class Alternatives :
     def __repr__ (self) :
         s = ['Alternatives:']
         for r in range (9) :
-            sets = [repr (self.sets [(r, c)]) for c in range (9)]
+            keys = [(r, c) for c in range (9) if (r, c) in self.sets]
+            sets = [repr (self.sets [k]) for k in keys]
             s.append (', '.join (sets))
         return '\n'.join (s)
     # end def __repr__
@@ -68,6 +69,9 @@ class Alternatives :
     # end def copy
 
     def update (self, row, col, val) :
+        if val not in self.sets [(row, col)] :
+            self.sets [(row, col)].clear ()
+            return
         del self.sets [(row, col)]
         for x in range (9) :
             if x != row :
@@ -118,30 +122,6 @@ class Puzzle :
         print
     # end def display
 
-    def is_ok (self, row, col) :
-        assert (self.puzzle [row][col])
-        # print "Try %d,%d to %d" % (row, col, self.puzzle [row][col]),
-        for x in range (9) :
-            if x != row and self.puzzle [x][col] == self.puzzle [row][col] :
-                #print "row No: %d,%d" % (x, col)
-                return False
-            if x != col and self.puzzle [row][x] == self.puzzle [row][col] :
-                #print "col No: %d,%d" % (row, x)
-                return False
-        colstart = int (col / 3) * 3
-        rowstart = int (row / 3) * 3
-        #print "rowstart, colstart", rowstart, colstart
-        for r in range (rowstart, rowstart + 3) :
-            for c in range (colstart, colstart + 3) :
-                if  (   r != row and c != col
-                    and self.puzzle [r][c] == self.puzzle [row][col]
-                    ) :
-                    #print "rxc No: %d,%d" % (r, c)
-                    return False
-        #print
-        return True
-    # end def is_ok
-
     def solve (self) :
         self._solve (Alternatives (self.puzzle))
         if self.verbose :
@@ -171,7 +151,6 @@ class Puzzle :
             nalt = alt.copy ()
             self.puzzle [v.row][v.col] = i
             nalt.update (v.row, v.col, i)
-            assert (self.is_ok (v.row, v.col))
             #print v.row, v.col
             #self.display ()
             self._solve (nalt)
