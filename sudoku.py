@@ -148,6 +148,7 @@ class Puzzle :
 
 
     def solve (self) :
+        self.solvecount = 0
         self._solve (Alternatives (self.puzzle))
         if self.verbose :
             print "No (more) solutions"
