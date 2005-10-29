@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.4
 
 import sys
 from   sets             import Set
 from   copy             import copy
 from   rsclib.autosuper import autosuper
+from   textwrap         import dedent
 
 class Alternative (Set, autosuper) :
     def __init__ (self, row, col, iterator = None) :
@@ -14,12 +15,8 @@ class Alternative (Set, autosuper) :
         self.col = col
     # end def __init__
 
-    def __cmp__ (self, other) :
-        return \
-            (  cmp (len (self), len (other))
-            or cmp (self.row,   other.row)
-            or cmp (self.col,   other.col)
-            )
+    def key (self) :
+        return len (self), self.row, self.col
     # end def __cmp__
 
     def __repr__ (self) :
@@ -48,14 +45,13 @@ class Alternatives :
                     for c in range (9) :
                         if puzzle [r][c] :
                             self.update (r, c, puzzle [r][c])
+        #print self
     # end def __init__
 
     def __repr__ (self) :
         s = ['Alternatives:']
-        for r in range (9) :
-            keys = [(r, c) for c in range (9) if (r, c) in self.sets]
-            sets = [repr (self.sets [k]) for k in keys]
-            s.append (', '.join (sets))
+        for v in self.values () :
+            s.append (repr (v))
         return '\n'.join (s)
     # end def __repr__
 
@@ -90,7 +86,7 @@ class Alternatives :
 
     def values (self) :
         v = self.sets.values ()
-        v.sort ()
+        v.sort (key = lambda x : x.key ())
         return v
     # end def iterator
 # end class Alternatives
@@ -122,6 +118,35 @@ class Puzzle :
         print
     # end def display
 
+    def as_tex (self) :
+        print dedent \
+            (   r"""
+                \documentclass[12pt]{article}
+                \begin{document}
+                \thispagestyle{empty}
+                \Huge
+                \newlength{\w}\setlength{\w}{1.5ex}
+                \begin{tabular}%
+                 {|p{\w}|p{\w}|p{\w}||p{\w}|p{\w}|p{\w}||p{\w}|p{\w}|p{\w}|}
+                """
+            )
+        for r in range (9) :
+            print r"\hline"
+            if r % 3 == 0 and r :
+                print r"\hline"
+            print '&'.join \
+                ([r"\hfil%s\hfil" % [p, ''][not p] for p in self.puzzle [r]]),
+            print r"\\"
+        print dedent \
+            (   r"""
+                \hline
+                \end{tabular}
+                \end{document}
+                """
+            )
+
+
+
     def solve (self) :
         self._solve (Alternatives (self.puzzle))
         if self.verbose :
@@ -139,7 +164,7 @@ class Puzzle :
                 break
         if v is None :
             if self.verbose :
-                print "Solved:"
+                print "Solved (%s):" % (self.solvecount + 1)
                 self.display ()
             self.solvecount += 1
             if self.solvecount >= self.solvemax :
