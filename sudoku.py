@@ -1,7 +1,95 @@
 #!/usr/bin/env python
 
 import sys
-from   copy import copy
+from   sets             import Set
+from   copy             import copy
+from   rsclib.autosuper import autosuper
+
+class Alternative (Set, autosuper) :
+    def __init__ (self, row, col, iterator = None) :
+        if iterator is None :
+            iterator = range (1, 10)
+        self.__super.__init__ (iterator)
+        self.row = row
+        self.col = col
+    # end def __init__
+
+    def __cmp__ (self, other) :
+        return \
+            (  cmp (len (self), len (other))
+            or cmp (self.row,   other.row)
+            or cmp (self.col,   other.col)
+            )
+    # end def __cmp__
+
+    def __repr__ (self) :
+        return "Alternative (row = %s, col = %s, %s)" \
+            % (self.row, self.col, [x for x in self])
+    # end def __repr__
+
+    def copy (self) :
+        return self.__class__ (self.row, self.col, self)
+    # end def copy
+
+    __str__ = __repr__
+# end class Alternative
+
+class Alternatives :
+    def __init__ (self, puzzle = None, sets = None) :
+        if sets :
+            self.sets = sets
+        else :
+            self.sets = {}
+            for r in range (9) :
+                for c in range (9) :
+                    self.sets [(r, c)] = Alternative (r, c)
+            if puzzle :
+                for r in range (9) :
+                    for c in range (9) :
+                        if puzzle [r][c] :
+                            self.update (r, c, puzzle [r][c])
+    # end def __init__
+
+    def __repr__ (self) :
+        s = ['Alternatives:']
+        for r in range (9) :
+            sets = [repr (self.sets [(r, c)]) for c in range (9)]
+            s.append (', '.join (sets))
+        return '\n'.join (s)
+    # end def __repr__
+
+    __str__ = __repr__
+
+    def copy (self) :
+        sets = {}
+        for k, v in self.sets.iteritems () :
+            sets [k] = v.copy ()
+        return Alternatives (sets = sets)
+    # end def copy
+
+    def update (self, row, col, val) :
+        del self.sets [(row, col)]
+        for x in range (9) :
+            if x != row :
+                if (x, col) in self.sets :
+                    self.sets [(x, col)].difference_update ((val,))
+            if x != col :
+                if (row, x) in self.sets :
+                    self.sets [(row, x)].difference_update ((val,))
+        colstart = int (col / 3) * 3
+        rowstart = int (row / 3) * 3
+        for r in range (rowstart, rowstart + 3) :
+            for c in range (colstart, colstart + 3) :
+                if  (r != row and c != col and (r, c) in self.sets) :
+                    self.sets [(r, c)].difference_update ((val,))
+    # end def update
+
+    def values (self) :
+        v = self.sets.values ()
+        v.sort ()
+        return v
+    # end def iterator
+# end class Alternatives
 
 class Puzzle :
     def __init__ (self, verbose = True, solvemax = 100) :
@@ -11,14 +99,6 @@ class Puzzle :
         self.verbose    = verbose
         self.solvemax   = solvemax
     # end def __init__
-
-    def possible (self) :
-        for r in range (9) :
-            for c in range (9) :
-                if self.puzzle [r][c] and not self.is_ok (r, c) :
-                    return False
-        return True
-    # end def possible
 
     def set (self, x, y, value) :
         self.puzzle [x][y] = value
@@ -62,49 +142,41 @@ class Puzzle :
         return True
     # end def is_ok
 
-    def _range (self, number) :
-        if number :
-            return (number,)
-        return range (1, 10)
-    # end def _range
-
-    def _new_location (self, row, col) :
-        newrow = row
-        newcol = col + 1
-        if newcol >= 9 :
-            newcol = 0
-            newrow = row + 1
-        if newrow >= 9 :
-            return None, None
-        return newrow, newcol
-    # end def _new_location
-
-    def solve (self, row, col) :
-        if self.solvecount > self.solvemax :
-            return
-        newrow, newcol = self._new_location (row, col)
-        old = self.puzzle [row][col]
-        for i in self._range (old) :
-            self.puzzle [row][col] = i
-            if self.is_ok (row, col) :
-                #print row, col, newrow, newcol
-                #self.display ()
-                if newrow is None :
-                    if self.verbose :
-                        print "Solved:"
-                        self.display ()
-                    self.solvecount += 1
-                    if self.solvecount > self.solvemax :
-                        if self.verbose :
-                            print "Max. solutions (%d) reached" % self.solvemax
-                        return
-                else :
-                    self.solve (newrow, newcol)
-        self.puzzle [row][col] = old
-        if col == 0 and row == 0 :
-            if self.verbose :
-                print "No (more) solutions"
+    def solve (self) :
+        self._solve (Alternatives (self.puzzle))
+        if self.verbose :
+            print "No (more) solutions"
     # end def solve
+
+    def _solve (self, alt) :
+        if self.solvecount >= self.solvemax :
+            return
+        v = None
+        for x in alt.values () :
+            if not x : return # no solution
+            if len (x) == 1 and not self.puzzle [x.row][x.col] or len (x) > 1 :
+                v = x
+                break
+        if v is None :
+            if self.verbose :
+                print "Solved:"
+                self.display ()
+            self.solvecount += 1
+            if self.solvecount >= self.solvemax :
+                if self.verbose :
+                    print "Max. solutions (%d) reached" % self.solvemax
+            return
+        old = self.puzzle [v.row][v.col]
+        for i in v :
+            nalt = alt.copy ()
+            self.puzzle [v.row][v.col] = i
+            nalt.update (v.row, v.col, i)
+            assert (self.is_ok (v.row, v.col))
+            #print v.row, v.col
+            #self.display ()
+            self._solve (nalt)
+        self.puzzle [v.row][v.col] = old
+    # end def _solve
 # end class Puzzle
 
 if __name__ == "__main__" :
@@ -114,4 +186,4 @@ if __name__ == "__main__" :
     x = Puzzle  ()
     x.from_file (file)
     #x.display   ()
-    x.solve     (0, 0)
+    x.solve     ()
