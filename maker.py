@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2.4
 
 from soduko import Puzzle
 from pga    import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
@@ -11,7 +11,7 @@ class Soduko_Maker (PGA) :
             ( self
             , type (2) # integer allele
             , 9 * 9
-            , init        = [[0, 52]] * (9 * 9)
+            , init        = [[0, 25]] * (9 * 9)
             , maximize    = False
             , random_seed = srand
             )
@@ -28,15 +28,15 @@ class Soduko_Maker (PGA) :
                 puzzle.set (x, y, val)
         puzzle.display ()
         print count,
-        if puzzle.possible () :
-            print "possible"
-            sys.stdout.flush ()
-            puzzle.solve (0, 0)
+        sys.stdout.flush ()
+        puzzle.solve ()
         print puzzle.solvecount
         sys.stdout.flush ()
         if puzzle.solvecount :
-            return puzzle.solvecount * count
-        return 50 * count
+            if puzzle.solvecount == 1 :
+                return count
+            return 1000 - count # + puzzle.solvecount
+        return 1000 * count * count
     # end def evaluate
 # end class Soduko_Maker
 
