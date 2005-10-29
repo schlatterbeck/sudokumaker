@@ -1,19 +1,24 @@
 #!/usr/bin/python2.4
 
-from soduko import Puzzle
-from pga    import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
-                 , PGA_REPORT_STRING, PGA_POPREPL_BEST
+from sudoku           import Puzzle
+from rsclib.autosuper import autosuper
+from pga              import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
+                           , PGA_REPORT_STRING, PGA_POPREPL_BEST
 import sys
 
-class Soduko_Maker (PGA) :
-    def __init__ (self, srand = 42) :
+class Sudoku_Maker (PGA, autosuper) :
+    def __init__ (self, srand = 42, verbose = False) :
+        self.verbose = verbose
         PGA.__init__ \
             ( self
             , type (2) # integer allele
             , 9 * 9
-            , init        = [[0, 25]] * (9 * 9)
-            , maximize    = False
-            , random_seed = srand
+            , init          = [[0, 9]] * (9 * 9)
+            , maximize      = False
+            , pop_size      = 500
+            , num_replace   = 250
+            , random_seed   = srand
+            , print_options = [PGA_REPORT_STRING]
             )
     # end def __init__
 
@@ -26,20 +31,31 @@ class Soduko_Maker (PGA) :
                 if val > 9 : val = 0
                 count += val != 0
                 puzzle.set (x, y, val)
-        puzzle.display ()
-        print count,
-        sys.stdout.flush ()
+        if self.verbose :
+            puzzle.display ()
+            print count,
+            sys.stdout.flush ()
         puzzle.solve ()
-        print puzzle.solvecount
-        sys.stdout.flush ()
+        if self.verbose :
+            print puzzle.solvecount
+            sys.stdout.flush ()
         if puzzle.solvecount :
             if puzzle.solvecount == 1 :
                 return count
-            return 1000 - count # + puzzle.solvecount
+            return 1000 - count + puzzle.solvecount
         return 1000 * count * count
     # end def evaluate
-# end class Soduko_Maker
+
+    def print_string (self, file, p, pop) :
+        verbose      = self.verbose
+        self.verbose = True
+        self.evaluate (p, pop)
+        self.verbose = verbose
+        return self.__super.print_string (file, p, pop)
+    # end def print_string
+# end class Sudoku_Maker
 
 if __name__ == "__main__" :
-    maker = Soduko_Maker ()
+    maker = Sudoku_Maker ()
+    maker.verbose = True
     maker.run ()
