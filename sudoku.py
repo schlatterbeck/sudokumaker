@@ -1,6 +1,7 @@
 #!/usr/bin/env python2.4
 
 import sys
+import time
 from   sets             import Set
 from   copy             import copy
 from   rsclib.autosuper import autosuper
@@ -118,17 +119,26 @@ class Puzzle :
         print
     # end def display
 
-    def as_tex (self) :
+    def as_tex (self, date = None, title = "", author = None) :
+        if not author :
+            author = 'Sudoku-Maker by Ralf Schlatterbeck'
+        if not date :
+            date = time.strftime ('%Y-%m-%d')
         print dedent \
             (   r"""
                 \documentclass[12pt]{article}
+                \date{%s}
+                \author{%s}
+                \title{%s}
                 \begin{document}
+                \maketitle
                 \thispagestyle{empty}
                 \Huge
+                \begin{center}
                 \newlength{\w}\setlength{\w}{1.5ex}
-                \begin{tabular}%
+                \begin{tabular}%%
                  {|p{\w}|p{\w}|p{\w}||p{\w}|p{\w}|p{\w}||p{\w}|p{\w}|p{\w}|}
-                """
+                """ % (date, author, title)
             )
         for r in range (9) :
             print r"\hline"
@@ -141,6 +151,7 @@ class Puzzle :
             (   r"""
                 \hline
                 \end{tabular}
+                \end{center}
                 \end{document}
                 """
             )
