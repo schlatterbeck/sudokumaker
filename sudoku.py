@@ -33,7 +33,8 @@ class Alternative (Set, autosuper) :
 # end class Alternative
 
 class Alternatives :
-    def __init__ (self, puzzle = None, sets = None) :
+    def __init__ (self, puzzle = None, sets = None, possible = True) :
+        self.possible = possible
         if sets :
             self.sets = sets
         else :
@@ -46,7 +47,8 @@ class Alternatives :
                     for c in range (9) :
                         if puzzle [r][c] :
                             self.update (r, c, puzzle [r][c])
-                self.infer (puzzle)
+                if self.possible :
+                    self.infer (puzzle)
         #print self
     # end def __init__
 
@@ -63,12 +65,13 @@ class Alternatives :
         sets = {}
         for k, v in self.sets.iteritems () :
             sets [k] = v.copy ()
-        return Alternatives (sets = sets)
+        return Alternatives (sets = sets, possible = self.possible)
     # end def copy
 
     def update (self, row, col, val) :
         if val not in self.sets [(row, col)] :
             self.sets [(row, col)].clear ()
+            self.possible = False
             return
         del self.sets [(row, col)]
         for x in range (9) :
@@ -144,19 +147,23 @@ class Alternatives :
                             r, c = qn, 3 * nq + x
                             if idx :
                                 r, c = c, r
-                            #print "check: (%s, %s): %s" % (r, c, puzzle [r][c])
+                            #print "check: (%s,%s):%s:" % (r, c, puzzle [r][c]),
                             if not puzzle [r][c] :
                                 if n in self.sets [(r, c)] :
                                     found += 1
                                     row = r
                                     col = c
+                            elif puzzle [r][c] == n :
+                                found = -1
+                                break
+                            #print found
                         if not found :
                             #print "NOT FOUND: %s" % n
                             assert v [i] not in self.sets
                             self.sets [(v [i])] = Alternative (v [0], v [1], [])
                         if found == 1 :
-                            self.sets [(r, c)].clear ()
-                            self.sets [(r, c)].add   (n)
+                            self.sets [(row, col)].clear ()
+                            self.sets [(row, col)].add   (n)
     # end def infer
 # end class Alternatives
 
