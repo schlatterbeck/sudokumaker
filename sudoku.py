@@ -46,6 +46,7 @@ class Alternatives :
                     for c in range (9) :
                         if puzzle [r][c] :
                             self.update (r, c, puzzle [r][c])
+                self.infer (puzzle)
         #print self
     # end def __init__
 
@@ -90,6 +91,73 @@ class Alternatives :
         v.sort (key = lambda x : x.key ())
         return v
     # end def iterator
+
+    def infer (self, puzzle) :
+        """ We check for quadrants with same x or y coordinates if we can
+            infer numbers in the third quadrant with the same x or y
+            coordinate, respectively.
+            If we find a unique match, we set the alternatives for this
+            match to the number found. If we find a discrepancy, we mark
+            one of the coordinates with the empty set.
+            For determining the coordinate of the third quadrant (and of
+            the second coordinate in the third quadrant) we make use of
+            the fact that quadrant coordinates are in the range [0:2] --
+            summing all coordinates for a quadrant always yields the sum
+            of 3, so we can determine the third quadrant by subtracting
+            the other two coordinates from 3.
+        """
+        numbers = {}
+        for c in range (9) :
+            for r in range (9) :
+                val = puzzle [r][c]
+                if not val : continue
+                if val not in numbers :
+                    numbers [val] = []
+                numbers [val].append ((r, c))
+        #print numbers
+        for n, v in numbers.iteritems () :
+            for idx in (0, 1) :
+                length = len (v)
+                v.sort (key = lambda x : (int (x [idx] / 3), x [1 - idx]))
+                #print "%s sorted: %s" % (n, v)
+                for i in range (length) :
+                    for j in range (i + 1, min (i + 2, length)) :
+                        qbase = [int (v [k][idx    ] / 3) for k in (i, j)]
+                        qoffs = [int (v [k][idx    ] % 3) for k in (i, j)]
+                        quadr = [int (v [k][1 - idx] / 3) for k in (i, j)]
+                        #print "idx: %s, qbase: %s, qoffs: %s, quadr: %s" % \
+                        #    (idx, qbase, qoffs, quadr)
+                        if qbase [0] != qbase [1] : continue
+                        # violations:
+                        if qoffs [0] == qoffs [1] or quadr [0] == quadr [1] :
+                            continue
+                        #print "Found: (%s,%s):%s, (%s,%s):%s" % \
+                        #    ( v[i][0], v[i][1], puzzle [v[i][0]][v[i][1]]
+                        #    , v[j][0], v[j][1], puzzle [v[j][0]][v[j][1]]
+                        #    )
+                        qbase = qbase [0] * 3
+                        qn    = qbase + 3 - qoffs [0] - qoffs [1]
+                        nq    =         3 - quadr [0] - quadr [1]
+                        found = 0
+                        row = col = -1
+                        for x in range (3) :
+                            r, c = qn, 3 * nq + x
+                            if idx :
+                                r, c = c, r
+                            #print "check: (%s, %s): %s" % (r, c, puzzle [r][c])
+                            if not puzzle [r][c] :
+                                if n in self.sets [(r, c)] :
+                                    found += 1
+                                    row = r
+                                    col = c
+                        if not found :
+                            #print "NOT FOUND: %s" % n
+                            assert v [i] not in self.sets
+                            self.sets [(v [i])] = Alternative (v [0], v [1], [])
+                        if found == 1 :
+                            self.sets [(r, c)].clear ()
+                            self.sets [(r, c)].add   (n)
+    # end def infer
 # end class Alternatives
 
 class Puzzle :
@@ -155,8 +223,7 @@ class Puzzle :
                 \end{document}
                 """
             )
-
-
+    # end def as_tex
 
     def solve (self) :
         self.solvecount = 0
