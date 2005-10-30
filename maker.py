@@ -1,24 +1,28 @@
 #!/usr/bin/python2.4
 
+import sys
 from sudoku           import Puzzle
 from rsclib.autosuper import autosuper
 from pga              import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
-                           , PGA_REPORT_STRING, PGA_POPREPL_BEST
+                           , PGA_STOP_NOCHANGE, PGA_REPORT_STRING \
+                           , PGA_POPREPL_BEST
 import sys
 
 class Sudoku_Maker (PGA, autosuper) :
     def __init__ (self, srand = 42, verbose = False) :
+        stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
         self.verbose = verbose
         PGA.__init__ \
             ( self
             , type (2) # integer allele
             , 9 * 9
-            , init          = [[0, 9]] * (9 * 9)
-            , maximize      = False
-            , pop_size      = 500
-            , num_replace   = 250
-            , random_seed   = srand
-            , print_options = [PGA_REPORT_STRING]
+            , init                = [[0, 9]] * (9 * 9)
+            , maximize            = False
+            , pop_size            = 500
+            , num_replace         = 250
+            , random_seed         = srand
+            , print_options       = [PGA_REPORT_STRING]
+            , stopping_rule_types = stop_on
             )
     # end def __init__
 
@@ -56,6 +60,8 @@ class Sudoku_Maker (PGA, autosuper) :
 # end class Sudoku_Maker
 
 if __name__ == "__main__" :
-    maker = Sudoku_Maker ()
-    maker.verbose = True
+    srand = 42
+    if len (sys.argv) > 1 :
+        srand = int (sys.argv [1])
+    maker = Sudoku_Maker (srand = srand, verbose = True)
     maker.run ()
