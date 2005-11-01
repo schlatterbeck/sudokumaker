@@ -160,8 +160,13 @@ class Alternatives :
                             #print found
                         if not found :
                             #print "NOT FOUND: %s" % n
-                            assert v [i] not in self.sets
-                            self.sets [(v [i])] = Alternative (v [0], v [1], [])
+                            #print v [i]
+                            if v [i] in self.sets :
+                                #print self.sets [v[i]]
+                                assert (not self.sets [v [i]])
+                            else :
+                                self.sets [v [i]] = Alternative \
+                                    (v [i][0], v [i][1], [])
                         if found == 1 :
                             self.sets [(row, col)].clear ()
                             self.sets [(row, col)].add   (n)
