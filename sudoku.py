@@ -50,6 +50,7 @@ class Alternatives :
                 if self.possible :
                     self.infer (puzzle)
         #print self
+        #sys.stdout.flush ()
     # end def __init__
 
     def __repr__ (self) :
