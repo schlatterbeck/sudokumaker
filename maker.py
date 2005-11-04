@@ -26,28 +26,44 @@ class Sudoku_Maker (PGA, autosuper) :
             )
     # end def __init__
 
+    cache = {}
+
     def evaluate (self, p, pop) :
         puzzle = Puzzle (verbose = False, solvemax = 50)
         count  = 0
+        vals   = []
         for x in range (9) :
             for y in range (9) :
                 val    = self.get_allele (p, pop, 9 * x + y)
                 if val > 9 : val = 0
                 count += val != 0
                 puzzle.set (x, y, val)
+                vals.append (val)
+        vals = tuple (vals)
         if self.verbose :
             puzzle.display ()
             print count,
             sys.stdout.flush ()
-        puzzle.solve ()
+        if vals in self.cache :
+            if self.verbose :
+                print "H",
+                sys.stdout.flush ()
+            solvecount = self.cache [vals]
+        else :
+            puzzle.solve ()
+            solvecount = puzzle.solvecount
+            self.cache [vals] = solvecount
         if self.verbose :
-            print puzzle.solvecount
+            print solvecount
             sys.stdout.flush ()
-        if puzzle.solvecount :
-            if puzzle.solvecount == 1 :
-                return count
-            return 1000 - count + puzzle.solvecount
-        return 1000 * count * count
+        if solvecount :
+            if solvecount == 1 :
+                eval = count
+            else :
+                eval = 1000 - count + solvecount
+        else :
+            eval = 1000 * count * count
+        return eval
     # end def evaluate
 
     def print_string (self, file, p, pop) :
