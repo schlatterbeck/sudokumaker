@@ -6,7 +6,6 @@ from rsclib.autosuper import autosuper
 from pga              import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
                            , PGA_STOP_NOCHANGE, PGA_REPORT_STRING \
                            , PGA_POPREPL_BEST
-import sys
 
 class Sudoku_Maker (PGA, autosuper) :
     def __init__ (self, srand = 42, verbose = False) :
@@ -14,7 +13,7 @@ class Sudoku_Maker (PGA, autosuper) :
         self.verbose = verbose
         PGA.__init__ \
             ( self
-            , type (2) # integer allele
+            , int # integer allele
             , 9 * 9
             , init                = [[0, 9]] * (9 * 9)
             , maximize            = False
@@ -75,9 +74,30 @@ class Sudoku_Maker (PGA, autosuper) :
     # end def print_string
 # end class Sudoku_Maker
 
-if __name__ == "__main__" :
-    srand = 42
-    if len (sys.argv) > 1 :
-        srand = int (sys.argv [1])
-    maker = Sudoku_Maker (srand = srand, verbose = True)
+def main () :
+    from optparse import OptionParser
+    from Version  import VERSION
+
+    cmd = OptionParser (version = "%%prog %s" % VERSION)
+    cmd.add_option \
+        ( "-r", "--random-seed"
+        , dest    = "random_seed"
+        , help    = "Numeric random seed, required argument"
+        , type    = "int"
+        )
+    cmd.add_option \
+        ( "-v", "--verbose"
+        , dest    = "verbose"
+        , help    = "Verbose output during search"
+        , action  = "store_true"
+        )
+    (opt, args) = cmd.parse_args ()
+    if len (args) :
+        cmd.error ("No arguments accepted")
+    if opt.random_seed is None :
+        cmd.error ("-r or --random-seed option is required")
+    maker = Sudoku_Maker (srand = opt.random_seed, verbose = opt.verbose)
     maker.run ()
+
+if __name__ == "__main__" :
+    main ()

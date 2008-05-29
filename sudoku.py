@@ -8,17 +8,23 @@ from   rsclib.autosuper import autosuper
 from   textwrap         import dedent
 
 class Alternative (Set, autosuper) :
-    def __init__ (self, row, col, iterator = None) :
-        if iterator is None :
-            iterator = range (1, 10)
-        self.__super.__init__ (iterator)
+    """ Class representing alternatives at a single position in a puzzle.
+        This is basically a Set with some additional methods and
+        variables to remember the position in the puzzle.
+    """
+    def __init__ (self, row, col, iterable = None) :
+        if iterable is None :
+            iterable = range (1, 10)
+        self.__super.__init__ (iterable)
         self.row = row
         self.col = col
     # end def __init__
 
     def key (self) :
+        """ Key for sorting.
+        """
         return len (self), self.row, self.col
-    # end def __cmp__
+    # end def key
 
     def __repr__ (self) :
         return "Alternative (row = %s, col = %s, %s)" \
@@ -26,6 +32,8 @@ class Alternative (Set, autosuper) :
     # end def __repr__
 
     def copy (self) :
+        """ Copy constructor
+        """
         return self.__class__ (self.row, self.col, self)
     # end def copy
 
@@ -63,13 +71,18 @@ class Alternatives :
     __str__ = __repr__
 
     def copy (self) :
+        """ Copy constructor
+        """
         sets = {}
         for k, v in self.sets.iteritems () :
             sets [k] = v.copy ()
-        return Alternatives (sets = sets, possible = self.possible)
+        return self.__class__ (sets = sets, possible = self.possible)
     # end def copy
 
     def update (self, row, col, val) :
+        """ Update puzzle at position row, col with value val.
+            After update determine if still solvable.
+        """
         if val not in self.sets [(row, col)] :
             self.sets [(row, col)].clear ()
             self.possible = False
@@ -86,7 +99,7 @@ class Alternatives :
         rowstart = int (row / 3) * 3
         for r in range (rowstart, rowstart + 3) :
             for c in range (colstart, colstart + 3) :
-                if  (r != row and c != col and (r, c) in self.sets) :
+                if  ((r != row or c != col) and (r, c) in self.sets) :
                     self.sets [(r, c)].difference_update ((val,))
     # end def update
 
@@ -94,7 +107,7 @@ class Alternatives :
         v = self.sets.values ()
         v.sort (key = lambda x : x.key ())
         return v
-    # end def iterator
+    # end def values
 
     def infer (self, puzzle) :
         """ We check for quadrants with same x or y coordinates if we can
