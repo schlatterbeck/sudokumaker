@@ -22,7 +22,10 @@
 # ****************************************************************************
 
 from distutils.core import setup
-from Version        import VERSION
+try :
+    from Version import VERSION
+except :
+    VERSION = None
 
 description = []
 f = open ('README')

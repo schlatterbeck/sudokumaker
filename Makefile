@@ -1,8 +1,9 @@
 PKG=sudokumaker
 PY=sudoku.py maker.py __init__.py
-SRC=Makefile MANIFEST.in setup.py README README.html default.css $(PY)
+SRC=Makefile MANIFEST.in setup.py README README.html $(PY)
 
-VERSION=Version.py
+VERSIONPY=Version.py
+VERSION=$(VERSIONPY)
 LASTRELEASE:=$(shell ../svntools/lastrelease -n)
 
 USERNAME=schlatterbeck
@@ -19,19 +20,6 @@ $(VERSION): $(SRC)
 
 dist: all
 	python setup.py sdist --formats=gztar,zip
-
-README.html: README default.css
-	rst2html --stylesheet=default.css $< > $@
-
-default.css: ../../content/html/stylesheets/default.css
-	cp ../../content/html/stylesheets/default.css .
-
-%.py: %.v $(SRC)
-	sed -e 's/RELEASE/$(LASTRELEASE)/' $< > $@
-
-upload_homepage: all
-	scp README.html $(USERNAME)@$(HOSTNAME):$(PROJECTDIR)/index.html
-	scp default.css $(USERNAME)@$(HOSTNAME):$(PROJECTDIR)
 
 clean:
 	rm -f MANIFEST README.html default.css \
