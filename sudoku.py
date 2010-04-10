@@ -41,8 +41,10 @@ class Alternative (Set, autosuper) :
 # end class Alternative
 
 class Alternatives :
-    def __init__ (self, puzzle = None, sets = None, possible = True) :
+    def __init__ \
+        (self, puzzle = None, sets = None, possible = True, diagonal = False) :
         self.possible = possible
+        self.diagonal = diagonal
         if sets :
             self.sets = sets
         else :
@@ -76,12 +78,13 @@ class Alternatives :
         sets = {}
         for k, v in self.sets.iteritems () :
             sets [k] = v.copy ()
-        return self.__class__ (sets = sets, possible = self.possible)
+        return self.__class__ \
+            (sets = sets, possible = self.possible, diagonal = self.diagonal)
     # end def copy
 
     def update (self, row, col, val) :
         """ Update puzzle at position row, col with value val.
-            After update determine if still solvable.
+            After update client should determine if still solvable.
         """
         if val not in self.sets [(row, col)] :
             self.sets [(row, col)].clear ()
@@ -99,8 +102,19 @@ class Alternatives :
         rowstart = int (row / 3) * 3
         for r in range (rowstart, rowstart + 3) :
             for c in range (colstart, colstart + 3) :
-                if  ((r != row or c != col) and (r, c) in self.sets) :
+                if  (r != row or c != col) and (r, c) in self.sets :
                     self.sets [(r, c)].difference_update ((val,))
+        if self.diagonal :
+            if row == col :
+                for r in range (9) :
+                    c = r
+                    if (r != row or c != col) and (r, c) in self.sets :
+                        self.sets [(r, c)].difference_update ((val,))
+            if row == 8 - col :
+                for r in range (9) :
+                    c = 8 - r
+                    if (r != row or c != col) and (r, c) in self.sets :
+                        self.sets [(r, c)].difference_update ((val,))
     # end def update
 
     def values (self) :
@@ -187,13 +201,20 @@ class Alternatives :
 # end class Alternatives
 
 class Puzzle :
-    def __init__ (self, verbose = True, solvemax = 100, do_time = False) :
+    def __init__ \
+        ( self
+        , verbose  = True
+        , solvemax = 100
+        , do_time  = False
+        , diagonal = False
+        ) :
         x = [0] * 9
         self.puzzle     = [copy (x) for i in range (9)]
         self.solvecount = 0
         self.verbose    = verbose
         self.solvemax   = solvemax
         self.do_time    = do_time
+        self.diagonal   = diagonal
         self.runtime    = 0.0
     # end def __init__
 
@@ -216,6 +237,10 @@ class Puzzle :
     # end def display
 
     def as_tex (self, date = None, title = "", author = None) :
+        """ Output as TeX code
+            FIXME: might want to paint diagonals grey (or yellow) when
+            diagonal is specified.
+        """
         if not author :
             author = 'Sudoku-Maker by Ralf Schlatterbeck'
         if not date :
@@ -257,7 +282,7 @@ class Puzzle :
         self.solvecount = 0
         if self.do_time :
             before = time.time ()
-        self._solve (Alternatives (self.puzzle))
+        self._solve (Alternatives (self.puzzle, diagonal = self.diagonal))
         if self.do_time :
             self.runtime = time.time () - before
         if self.verbose :
@@ -297,10 +322,29 @@ class Puzzle :
 # end class Puzzle
 
 if __name__ == "__main__" :
+    from optparse import OptionParser
+    from Version  import VERSION
+
+    cmd = OptionParser (version = "%%prog %s" % VERSION)
+    cmd.add_option \
+        ( "-d", "--diagonal"
+        , dest    = "diagonal"
+        , help    = "Add diagonality constraint"
+        , action  = "store_true"
+        )
+    cmd.add_option \
+        ( "-t", "--time"
+        , dest    = "do_time"
+        , help    = "Runtime measurement"
+        , action  = "store_true"
+        )
+    (opt, args) = cmd.parse_args ()
     file = sys.stdin
-    if len (sys.argv) > 1 :
-        file = open (sys.argv [1])
-    x = Puzzle  ()
+    if len (args) > 1 :
+        cmd.error ("Only 1 argument accepted")
+    elif len (args) == 1 :
+        file = open (args [0])
+    x = Puzzle  (diagonal = opt.diagonal, do_time = opt.do_time)
     x.from_file (file)
     #x.display   ()
     x.solve     ()
