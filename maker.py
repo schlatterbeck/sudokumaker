@@ -1,4 +1,4 @@
-#!/usr/bin/python2.4
+#!/usr/bin/python
 
 import sys
 from sudoku           import Puzzle
@@ -8,9 +8,10 @@ from pga              import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
                            , PGA_POPREPL_BEST
 
 class Sudoku_Maker (PGA, autosuper) :
-    def __init__ (self, srand = 42, verbose = False) :
+    def __init__ (self, srand = 42, verbose = False, do_time = False) :
         stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
         self.verbose = verbose
+        self.do_time = do_time
         PGA.__init__ \
             ( self
             , int # integer allele
@@ -28,7 +29,7 @@ class Sudoku_Maker (PGA, autosuper) :
     cache = {}
 
     def evaluate (self, p, pop) :
-        puzzle = Puzzle (verbose = False, solvemax = 50)
+        puzzle = Puzzle (verbose = False, solvemax = 50, do_time = self.do_time)
         count  = 0
         vals   = []
         for x in range (9) :
@@ -54,6 +55,8 @@ class Sudoku_Maker (PGA, autosuper) :
             self.cache [vals] = solvecount
         if self.verbose :
             print solvecount
+            if puzzle.runtime :
+                print "runtime: %s" % puzzle.runtime
             sys.stdout.flush ()
         if solvecount :
             if solvecount == 1 :
@@ -86,6 +89,12 @@ def main () :
         , type    = "int"
         )
     cmd.add_option \
+        ( "-t", "--time"
+        , dest    = "do_time"
+        , help    = "Runtime measurement"
+        , action  = "store_true"
+        )
+    cmd.add_option \
         ( "-v", "--verbose"
         , dest    = "verbose"
         , help    = "Verbose output during search"
@@ -96,7 +105,8 @@ def main () :
         cmd.error ("No arguments accepted")
     if opt.random_seed is None :
         cmd.error ("-r or --random-seed option is required")
-    maker = Sudoku_Maker (srand = opt.random_seed, verbose = opt.verbose)
+    maker = Sudoku_Maker \
+        (srand = opt.random_seed, verbose = opt.verbose, do_time = opt.do_time)
     maker.run ()
 
 if __name__ == "__main__" :

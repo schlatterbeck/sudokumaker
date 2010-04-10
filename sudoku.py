@@ -187,12 +187,14 @@ class Alternatives :
 # end class Alternatives
 
 class Puzzle :
-    def __init__ (self, verbose = True, solvemax = 100) :
+    def __init__ (self, verbose = True, solvemax = 100, do_time = False) :
         x = [0] * 9
         self.puzzle     = [copy (x) for i in range (9)]
         self.solvecount = 0
         self.verbose    = verbose
         self.solvemax   = solvemax
+        self.do_time    = do_time
+        self.runtime    = 0.0
     # end def __init__
 
     def set (self, x, y, value) :
@@ -253,9 +255,15 @@ class Puzzle :
 
     def solve (self) :
         self.solvecount = 0
+        if self.do_time :
+            before = time.time ()
         self._solve (Alternatives (self.puzzle))
+        if self.do_time :
+            self.runtime = time.time () - before
         if self.verbose :
             print "No (more) solutions"
+            if self.do_time :
+                print "runtime: %s" % self.runtime
     # end def solve
 
     def _solve (self, alt) :
