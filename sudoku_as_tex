@@ -2,17 +2,41 @@
 
 import sys
 import os
-from   sudoku import Puzzle
+from   sudoku   import Puzzle
+from   optparse import OptionParser
+from   Version  import VERSION
 
-file   = sys.stdin
-name   = ''
-author = None
-if len (sys.argv) > 1 :
-    file = open (sys.argv [1])
-    name = os.path.splitext (sys.argv [1])[0]
-if len (sys.argv) > 2 :
-    author = sys.argv [2]
-x = Puzzle  ()
+cmd    = OptionParser (version = "%%prog %s" % VERSION)
+
+cmd.add_option \
+    ( "-a", "--author"
+    , dest    = "author"
+    , help    = "Change default author info"
+    )
+cmd.add_option \
+    ( "-d", "--diagonal"
+    , dest    = "diagonal"
+    , help    = "Add diagonality coloring (FIXME: not yet implemented)"
+    , action  = "store_true"
+    )
+cmd.add_option \
+    ( "-t", "--title"
+    , dest    = "title"
+    , help    = "Change default title info (defaults to given filename)"
+    , default = ''
+    )
+(opt, args) = cmd.parse_args ()
+file = sys.stdin
+name = ''
+if len (args) > 1 :
+    cmd.error ("Only 1 argument accepted")
+elif len (args) == 1 :
+    file = open (args [0])
+    name = args [0]
+if opt.title :
+    name = opt.title
+
+x = Puzzle  (diagonal = opt.diagonal)
 x.from_file (file)
-x.as_tex     (title = name, author = author)
+x.as_tex    (title = name, author = opt.author)
 
