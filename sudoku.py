@@ -198,6 +198,33 @@ class Alternatives :
                             self.sets [(row, col)].clear ()
                             self.sets [(row, col)].add   (n)
     # end def infer
+
+    def set_exclude (self) :
+        """ We check the sets in one row, column or quadrant.
+            If a single number is only in one of them, we remove all
+            other numbers from the Alternative in that position.
+            Likewise: If two numbers are only in two sets, remove all
+            other numbers from these two, and so on for three, four, ...
+            We record if changes were made, so the caller can decide to
+            call us again until nothing changes.
+        """
+        changed = False
+        return changed
+    # end def set_exclude
+
+    def set_remove (self) :
+        """ We check the sets in one row, column or quadrant.
+            If there are two identical sets with cardinality 2 we remove
+            the numbers in that set from all other sets in that entity.
+            Likewise for 3, 4, ...
+            Let the caller know if something changed, so we can be
+            called again until reaching stable state. Probably a good
+            idea to interleave calls to this method with calls to
+            set_exclude.
+        """
+        changed = False
+        return changed
+    # end def set_remove
 # end class Alternatives
 
 class Puzzle :
@@ -248,6 +275,7 @@ class Puzzle :
         print dedent \
             (   r"""
                 \documentclass[12pt]{article}
+                \usepackage{color}
                 \date{%s}
                 \author{%s}
                 \title{%s}
@@ -256,17 +284,26 @@ class Puzzle :
                 \thispagestyle{empty}
                 \Huge
                 \begin{center}
-                \newlength{\w}\setlength{\w}{1.5ex}
+                \newlength{\w}\setlength{\w}{3ex}
+                \setlength{\fboxsep}{0pt}
                 \begin{tabular}%%
-                 {|p{\w}|p{\w}|p{\w}||p{\w}|p{\w}|p{\w}||p{\w}|p{\w}|p{\w}|}
+                 {@{}|@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|
+                     |@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|
+                     |@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|@{}}
                 """ % (date, author, title)
             )
+        bgcolor = diagcolor = 'white'
+        if self.diagonal :
+            diagcolor = 'yellow'
         for r in range (9) :
             print r"\hline"
             if r % 3 == 0 and r :
                 print r"\hline"
             print '&'.join \
-                ([r"\hfil%s\hfil" % [p, ''][not p] for p in self.puzzle [r]]),
+                ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
+                % ([bgcolor, diagcolor][r == n or r == 8 - n], p or '')
+                  for n, p in enumerate (self.puzzle [r])
+                ),
             print r"\\"
         print dedent \
             (   r"""
@@ -314,6 +351,7 @@ class Puzzle :
             nalt = alt.copy ()
             self.puzzle [v.row][v.col] = i
             nalt.update (v.row, v.col, i)
+            nalt.infer  (self.puzzle)
             #print v.row, v.col
             #self.display ()
             self._solve (nalt)
@@ -333,6 +371,13 @@ if __name__ == "__main__" :
         , action  = "store_true"
         )
     cmd.add_option \
+        ( "-m", "--solvemax"
+        , dest    = "solvemax"
+        , help    = "Maximum number of solutions printed"
+        , type    = "int"
+        , default = 100
+        )
+    cmd.add_option \
         ( "-t", "--time"
         , dest    = "do_time"
         , help    = "Runtime measurement"
@@ -344,7 +389,11 @@ if __name__ == "__main__" :
         cmd.error ("Only 1 argument accepted")
     elif len (args) == 1 :
         file = open (args [0])
-    x = Puzzle  (diagonal = opt.diagonal, do_time = opt.do_time)
+    x = Puzzle \
+        ( diagonal = opt.diagonal
+        , do_time  = opt.do_time
+        , solvemax = opt.solvemax
+        )
     x.from_file (file)
     #x.display   ()
     x.solve     ()
