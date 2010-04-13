@@ -151,6 +151,7 @@ class Alternatives :
             the other two coordinates from 3.
         """
         numbers = {}
+        # FIXME: Don't use puzzle, use solved tiles with 1 possibility
         for c in range (9) :
             for r in range (9) :
                 val = puzzle [r][c]
@@ -160,19 +161,24 @@ class Alternatives :
                 numbers [val].append ((r, c))
         #print numbers
         for n, v in numbers.iteritems () :
-            for idx in (0, 1) :
+            for idx in (0, 1) : # by row or by column
                 length = len (v)
+                # sort by column or row, then row or column
                 v.sort (key = lambda x : (int (x [idx] / 3), x [1 - idx]))
                 #print "%s sorted: %s" % (n, v)
                 for i in range (length) :
                     for j in range (i + 1, min (i + 2, length)) :
+                        # qbase is the quadrant row or col
+                        # qoffs is the row or col in that quadrant
+                        # quadr is the quadrant in the other direction
                         qbase = [int (v [k][idx    ] / 3) for k in (i, j)]
                         qoffs = [int (v [k][idx    ] % 3) for k in (i, j)]
                         quadr = [int (v [k][1 - idx] / 3) for k in (i, j)]
                         #print "idx: %s, qbase: %s, qoffs: %s, quadr: %s" % \
                         #    (idx, qbase, qoffs, quadr)
+                        # not in same quadrant row / col
                         if qbase [0] != qbase [1] : continue
-                        # violations:
+                        # violations: FIXME mark me invalid
                         if qoffs [0] == qoffs [1] or quadr [0] == quadr [1] :
                             continue
                         #print "Found: (%s,%s):%s, (%s,%s):%s" % \
@@ -199,16 +205,7 @@ class Alternatives :
                                 break
                             #print found
                         if not found :
-                            #print "NOT FOUND: %s" % n
-                            #print v [i]
-                            if v [i] in self.sets :
-                                #print self.sets [v[i]]
-                                #FIXME:
-                                #assert (not self.sets [v [i]])
-                                pass
-                            else :
-                                self.sets [v [i]] = Alternative \
-                                    (v [i][0], v [i][1], [])
+                            self.sets [v [i]].clear ()
                         if found == 1 :
                             self.sets [(row, col)].clear ()
                             self.sets [(row, col)].add   (n)
