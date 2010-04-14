@@ -199,6 +199,7 @@ class Alternatives :
             of 3, so we can determine the third quadrant by subtracting
             the other two coordinates from 3.
         """
+        # FIXME: don't use puzzle
         for n, v in self.solved_by_n.iteritems () :
             for idx in (0, 1) : # by row or by column
                 length = len (v)
