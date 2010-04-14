@@ -7,8 +7,12 @@ from   copy             import copy
 from   rsclib.autosuper import autosuper
 from   textwrap         import dedent
 
-class Alternative (Set, autosuper) :
-    """ Class representing alternatives at a single position in a puzzle.
+# these are used as indeces into a pos tuple (row, col)
+ROW = 0
+COL = 1
+
+class Tile (Set, autosuper) :
+    """ Class representing alternatives at a single tile position in a puzzle.
         This is basically a Set with some additional methods and
         variables to remember the position in the puzzle.
     """
@@ -32,32 +36,55 @@ class Alternative (Set, autosuper) :
         return self.__class__ (self.row, self.col, self)
     # end def copy
 
+    def get (self) :
+        """ Get only item if there is only one """
+        assert (len (self) == 1)
+        return tuple (self) [0]
+    # end def get
+
+    @property
+    def pos (self) :
+        """ return position coordinates tuple """
+        return (self.row, self.col)
+    # end def pos
+
     def __repr__ (self) :
-        return "Alternative (row = %s, col = %s, %s)" \
-            % (self.row, self.col, [x for x in self])
+        return "Tile (row = %s, col = %s, %s)" \
+            % (self.row, self.col, ''.join (sorted (str (x) for x in self)))
     # end def __repr__
 
     __str__ = __repr__
-# end class Alternative
+# end class Tile
 
 class Alternatives :
+    """ Internal representation of a puzzle.
+        We store the set of possibilities for each tile position.
+        The inverse structure solved_by_n stores for each number the set
+        of positions where this number is the only possibility.
+    """
+
     def __init__ \
-        (self, puzzle = None, sets = None, possible = True, diagonal = False) :
-        self.possible = possible
+        (self, puzzle = None, tile = None, solvable = True, diagonal = False) :
+        self.solvable = solvable
         self.diagonal = diagonal
-        self.sets     = sets or {}
-        if sets :
+        self.tile     = tile or {}
+        if tile :
+            self.solved_by_n = dict ((n, Set ()) for n in range (1, 10))
+            for t in self.tiles () :
+                if len (t) == 1 :
+                    self.solved_by_n [t.get ()].add (t.pos)
             return
         assert (puzzle)
         for r in range (9) :
             for c in range (9) :
-                self.sets [(r, c)] = Alternative (r, c)
+                self.tile [(r, c)] = Tile (r, c)
+        self.solved_by_n = dict ((n, Set ()) for n in range (1, 10))
         if puzzle :
             for r in range (9) :
                 for c in range (9) :
                     if puzzle [r][c] :
                         self.update (r, c, puzzle [r][c])
-            if self.possible :
+            if self.solvable :
                 self.infer (puzzle)
         #print self
         #sys.stdout.flush ()
@@ -66,73 +93,95 @@ class Alternatives :
     def copy (self) :
         """ Copy constructor
         """
-        sets = {}
-        for k, v in self.sets.iteritems () :
-            sets [k] = v.copy ()
+        tile = {}
+        for k, v in self.tile.iteritems () :
+            tile [k] = v.copy ()
         return self.__class__ \
-            (sets = sets, possible = self.possible, diagonal = self.diagonal)
+            (tile = tile, solvable = self.solvable, diagonal = self.diagonal)
     # end def copy
+
+    def delete (self, tile, val) :
+        """ Delete val from possibilities in tile """
+        tile.discard (val)
+        if len (tile) == 1 :
+            self.solved_by_n [tile.get ()].add (tile.pos)
+    # end def delete
+
+    def set (self, tile, val) :
+        """ Set tile to the sole possibility val """
+        self.solved_by_n [val].add (tile.pos)
+        tile.clear ()
+        tile.add   (val)
+    # end def set
 
     def update (self, row, col, val) :
         """ Update puzzle at position row, col with value val.
             After update client should determine if still solvable.
         """
-        if val not in self.sets [(row, col)] :
-            self.sets [(row, col)].clear ()
-            self.possible = False
+        if val not in self.tile [(row, col)] :
+            self.tile [(row, col)].clear ()
+            self.solvable = False
             return
-        self.sets [(row, col)].clear ()
-        self.sets [(row, col)].add   (val)
-        for s in self.row_iter (col) :
+        tile = self.tile [(row, col)]
+        self.set (tile, val)
+        for s in self.row_iter (*tile.pos) :
             if s.row != row :
-                s.discard (val)
-        for s in self.col_iter (row) :
+                self.delete (s, val)
+        for s in self.col_iter (*tile.pos) :
             if s.col != col :
-                s.discard (val)
-        for s in self.quadrant_iter (row, col) :
+                self.delete (s, val)
+        for s in self.quadrant_iter (*tile.pos) :
             if s.row != row or s.col != col :
-                s.discard (val)
+                self.delete (s, val)
         if self.diagonal :
-            if row == col :
-                for r in range (9) :
-                    c = r
-                    if r != row or c != col :
-                        self.sets [(r, c)].discard (val)
-            if row == 8 - col :
-                for r in range (9) :
-                    c = 8 - r
-                    if r != row or c != col :
-                        self.sets [(r, c)].discard (val)
+            for s in self.diagonal_iter (*tile.pos) :
+                if s.row != row or s.col != col :
+                    self.delete (s, val)
     # end def update
-
-    def values (self) :
-        v = self.sets.values ()
-        v.sort (key = lambda x : x.key ())
-        return v
-    # end def values
 
     # iterators:
 
-    def col_iter (self, row) :
-        """ Iterate over all sets in a col for a given row """
-        return (self.sets [(row, col)] for col in range (9))
+    def tiles (self) :
+        """ Iterate over all tiles in the puzzle """
+        return sorted (self.tile.itervalues (), key = lambda x : x.key ())
+    # end def tiles
+
+    def col_iter (self, row, col) :
+        """ Iterate over all tiles in a col for a given row """
+        return (self.tile [(row, col)] for col in range (9))
     # end def col_iter
         
-    def row_iter (self, col) :
-        """ Iterate over all sets in a row for a given col """
-        return (self.sets [(row, col)] for row in range (9))
+    def row_iter (self, row, col) :
+        """ Iterate over all tiles in a row for a given col """
+        return (self.tile [(row, col)] for row in range (9))
     # end def row_iter
 
     def quadrant_iter (self, row, col) :
-        """ Iterate over all sets in a quadrant.
+        """ Iterate over all tiles in a quadrant.
             Coordinates are from one set in that quadrant.
         """
         colstart = int (col / 3) * 3
         rowstart = int (row / 3) * 3
         for r in range (rowstart, rowstart + 3) :
             for c in range (colstart, colstart + 3) :
-                yield self.sets [(r, c)]
+                yield self.tile [(r, c)]
     # end def quadrant_iter
+
+    def diagonal_iter (self, row, col) :
+        """ Iterate over all tiles in the diagonal given by row, col.
+            If row, col isn't on a diagonal, iterator stops immediately.
+            If row, col is on both diagonals, return all positions on
+            diagonal. The center in that case is returned twice.
+        """
+        if row == col :
+            for r in range (9) :
+                c = r
+                yield self.tile [(r, c)]
+        if row == 8 - col :
+            for r in range (9) :
+                c = 8 - r
+                yield self.tile [(r, c)]
+    # end def diagonal_iter
 
     # related to solving:
 
@@ -150,21 +199,12 @@ class Alternatives :
             of 3, so we can determine the third quadrant by subtracting
             the other two coordinates from 3.
         """
-        numbers = {}
-        # FIXME: Don't use puzzle, use solved tiles with 1 possibility
-        for c in range (9) :
-            for r in range (9) :
-                val = puzzle [r][c]
-                if not val : continue
-                if val not in numbers :
-                    numbers [val] = []
-                numbers [val].append ((r, c))
-        #print numbers
-        for n, v in numbers.iteritems () :
+        for n, v in self.solved_by_n.iteritems () :
             for idx in (0, 1) : # by row or by column
                 length = len (v)
                 # sort by column or row, then row or column
-                v.sort (key = lambda x : (int (x [idx] / 3), x [1 - idx]))
+                v = tuple (sorted \
+                    (v, key = lambda x : (int (x [idx] / 3), x [1 - idx])))
                 #print "%s sorted: %s" % (n, v)
                 for i in range (length) :
                     for j in range (i + 1, min (i + 2, length)) :
@@ -176,7 +216,7 @@ class Alternatives :
                         quadr = [int (v [k][1 - idx] / 3) for k in (i, j)]
                         #print "idx: %s, qbase: %s, qoffs: %s, quadr: %s" % \
                         #    (idx, qbase, qoffs, quadr)
-                        # not in same quadrant row / col
+                        # not in same quadrant row / quadrant col
                         if qbase [0] != qbase [1] : continue
                         # violations: FIXME mark me invalid
                         if qoffs [0] == qoffs [1] or quadr [0] == quadr [1] :
@@ -196,7 +236,7 @@ class Alternatives :
                                 r, c = c, r
                             #print "check: (%s,%s):%s:" % (r, c, puzzle [r][c]),
                             if not puzzle [r][c] :
-                                if n in self.sets [(r, c)] :
+                                if n in self.tile [(r, c)] :
                                     found += 1
                                     row = r
                                     col = c
@@ -205,17 +245,16 @@ class Alternatives :
                                 break
                             #print found
                         if not found :
-                            self.sets [v [i]].clear ()
+                            self.tile [v [i]].clear ()
                         if found == 1 :
-                            self.sets [(row, col)].clear ()
-                            self.sets [(row, col)].add   (n)
+                            self.set (self.tile [(row, col)], n)
     # end def infer
 
     def set_exclude (self) :
-        """ We check the sets in one row, column or quadrant.
+        """ We check the tiles in one row, column or quadrant.
             If a single number is only in one of them, we remove all
-            other numbers from the Alternative in that position.
-            Likewise: If two numbers are only in two sets, remove all
+            other numbers from the Tile in that position.
+            Likewise: If two numbers are only in two tiles, remove all
             other numbers from these two, and so on for three, four, ...
             We record if changes were made, so the caller can decide to
             call us again until nothing changes.
@@ -225,9 +264,9 @@ class Alternatives :
     # end def set_exclude
 
     def set_remove (self) :
-        """ We check the sets in one row, column or quadrant.
-            If there are two identical sets with cardinality 2 we remove
-            the numbers in that set from all other sets in that entity.
+        """ We check the tiles in one row, column or quadrant.
+            If there are two identical tiles with cardinality 2 we remove
+            the numbers in that tile from all other tiles in that entity.
             Likewise for 3, 4, ...
             Let the caller know if something changed, so we can be
             called again until reaching stable state. Probably a good
@@ -240,8 +279,11 @@ class Alternatives :
 
     def __repr__ (self) :
         s = ['Alternatives:']
-        for v in self.values () :
-            s.append (repr (v))
+        for row in range (9) :
+            x = []
+            for t in self.col_iter (row, 1) :
+                x.append ('%-9s' % ''.join (str (x) for x in sorted (t)))
+            s.append (' '.join (x))
         return '\n'.join (s)
     # end def __repr__
 
@@ -354,7 +396,7 @@ class Puzzle :
         if self.solvecount >= self.solvemax :
             return
         v = None
-        for x in alt.values () :
+        for x in alt.tiles () :
             if not x : return # no solution
             if len (x) == 1 and not self.puzzle [x.row][x.col] or len (x) > 1 :
                 v = x
