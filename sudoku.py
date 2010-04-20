@@ -16,12 +16,13 @@ class Tile (Set, autosuper) :
         This is basically a Set with some additional methods and
         variables to remember the position in the puzzle.
     """
-    def __init__ (self, row, col, iterable = None) :
+    def __init__ (self, parent, row, col, iterable = None) :
         if iterable is None :
             iterable = range (1, 10)
         self.__super.__init__ (iterable)
-        self.row = row
-        self.col = col
+        self.parent = parent
+        self.row    = row
+        self.col    = col
     # end def __init__
 
     def key (self) :
@@ -33,14 +34,28 @@ class Tile (Set, autosuper) :
     def copy (self) :
         """ Copy constructor
         """
-        return self.__class__ (self.row, self.col, self)
+        return self.__class__ (self.parent, self.row, self.col, self)
     # end def copy
+
+    def discard (self, val) :
+        """ Discard val from possibilities """
+        self.__super.discard (val)
+        if len (self) == 1 :
+            self.parent.mark_solved (self)
+    # end def discard
 
     def get (self) :
         """ Get only item if there is only one """
         assert (len (self) == 1)
         return tuple (self) [0]
     # end def get
+
+    def set (self, val) :
+        """ Set tile to the sole possibility val """
+        self.clear ()
+        self.add   (val)
+        self.parent.mark_solved (self)
+    # end def set
 
     @property
     def pos (self) :
@@ -71,13 +86,14 @@ class Alternatives :
         if tile :
             self.solved_by_n = dict ((n, Set ()) for n in range (1, 10))
             for t in self.tiles () :
+                t.parent = self
                 if len (t) == 1 :
                     self.solved_by_n [t.get ()].add (t.pos)
             return
         assert (puzzle)
         for r in range (9) :
             for c in range (9) :
-                self.tile [(r, c)] = Tile (r, c)
+                self.tile [(r, c)] = Tile (self, r, c)
         self.solved_by_n = dict ((n, Set ()) for n in range (1, 10))
         if puzzle :
             for r in range (9) :
@@ -100,19 +116,10 @@ class Alternatives :
             (tile = tile, solvable = self.solvable, diagonal = self.diagonal)
     # end def copy
 
-    def delete (self, tile, val) :
-        """ Delete val from possibilities in tile """
-        tile.discard (val)
-        if len (tile) == 1 :
-            self.solved_by_n [tile.get ()].add (tile.pos)
-    # end def delete
-
-    def set (self, tile, val) :
-        """ Set tile to the sole possibility val """
-        self.solved_by_n [val].add (tile.pos)
-        tile.clear ()
-        tile.add   (val)
-    # end def set
+    def mark_solved (self, tile) :
+        """ mark position as solved """
+        self.solved_by_n [tile.get ()].add (tile.pos)
+    # end def mark_solved
 
     def update (self, row, col, val) :
         """ Update puzzle at position row, col with value val.
@@ -123,20 +130,20 @@ class Alternatives :
             self.solvable = False
             return
         tile = self.tile [(row, col)]
-        self.set (tile, val)
+        tile.set (val)
         for s in self.row_iter (*tile.pos) :
             if s.row != row :
-                self.delete (s, val)
+                s.discard (val)
         for s in self.col_iter (*tile.pos) :
             if s.col != col :
-                self.delete (s, val)
+                s.discard (val)
         for s in self.quadrant_iter (*tile.pos) :
             if s.row != row or s.col != col :
-                self.delete (s, val)
+                s.discard (val)
         if self.diagonal :
             for s in self.diagonal_iter (*tile.pos) :
                 if s.row != row or s.col != col :
-                    self.delete (s, val)
+                    s.discard (val)
     # end def update
 
     # iterators:
@@ -248,7 +255,7 @@ class Alternatives :
                         if not found :
                             self.tile [v [i]].clear ()
                         if found == 1 :
-                            self.set (self.tile [(row, col)], n)
+                            self.tile [(row, col)].set (n)
     # end def infer
 
     def set_exclude (self) :
