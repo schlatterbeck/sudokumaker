@@ -156,7 +156,7 @@ class Alternatives :
                 if s.row != row or s.col != col :
                     s.discard (val)
         if self.colorconstrained :
-            for s in self.quadrant_position_iter (*tile.pos) :
+            for s in self.quadrant_pos_iter (*tile.pos) :
                 if s.row != row or s.col != col :
                     s.discard (val)
     # end def update
@@ -171,17 +171,8 @@ class Alternatives :
     def col_iter (self, row, col) :
         """ Iterate over all tiles in a given col
             >>> a = Alternatives ()
-            >>> for t in a.col_iter (0, 0) :
-            ...     t.pos
-            (0, 0)
-            (0, 1)
-            (0, 2)
-            (0, 3)
-            (0, 4)
-            (0, 5)
-            (0, 6)
-            (0, 7)
-            (0, 8)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.col_iter (0, 0))
+            '(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)'
         """
         return (self.tile [(row, col)] for col in range (9))
     # end def col_iter
@@ -189,17 +180,8 @@ class Alternatives :
     def row_iter (self, row, col) :
         """ Iterate over all tiles in a given row
             >>> a = Alternatives ()
-            >>> for t in a.row_iter (0, 0) :
-            ...     t.pos
-            (0, 0)
-            (1, 0)
-            (2, 0)
-            (3, 0)
-            (4, 0)
-            (5, 0)
-            (6, 0)
-            (7, 0)
-            (8, 0)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.row_iter (0, 0))
+            '(0,0),(1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0)'
         """
         return (self.tile [(row, col)] for row in range (9))
     # end def row_iter
@@ -208,17 +190,8 @@ class Alternatives :
         """ Iterate over all tiles in a quadrant.
             Coordinates are from one set in that quadrant.
             >>> a = Alternatives ()
-            >>> for t in a.quadrant_iter (0, 0) :
-            ...     t.pos
-            (0, 0)
-            (0, 1)
-            (0, 2)
-            (1, 0)
-            (1, 1)
-            (1, 2)
-            (2, 0)
-            (2, 1)
-            (2, 2)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_iter (0, 0))
+            '(0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2)'
         """
         colstart = int (col / 3) * 3
         rowstart = int (row / 3) * 3
@@ -235,48 +208,15 @@ class Alternatives :
             >>> a = Alternatives ()
             >>> for t in a.diagonal_iter (1, 2) :
             ...     t.pos
-            >>> for t in a.diagonal_iter (0, 0) :
-            ...     t.pos
-            (0, 0)
-            (1, 1)
-            (2, 2)
-            (3, 3)
-            (4, 4)
-            (5, 5)
-            (6, 6)
-            (7, 7)
-            (8, 8)
-            >>> for t in a.diagonal_iter (0, 8) :
-            ...     t.pos
-            (0, 8)
-            (1, 7)
-            (2, 6)
-            (3, 5)
-            (4, 4)
-            (5, 3)
-            (6, 2)
-            (7, 1)
-            (8, 0)
-            >>> for t in a.diagonal_iter (4, 4) :
-            ...     t.pos
-            (0, 0)
-            (1, 1)
-            (2, 2)
-            (3, 3)
-            (4, 4)
-            (5, 5)
-            (6, 6)
-            (7, 7)
-            (8, 8)
-            (0, 8)
-            (1, 7)
-            (2, 6)
-            (3, 5)
-            (4, 4)
-            (5, 3)
-            (6, 2)
-            (7, 1)
-            (8, 0)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.diagonal_iter (0, 0))
+            '(0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8)'
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.diagonal_iter (0, 8))
+            '(0,8),(1,7),(2,6),(3,5),(4,4),(5,3),(6,2),(7,1),(8,0)'
+            >>> both = [t.pos for t in a.diagonal_iter (4, 4)]
+            >>> ','.join ('(%s,%s)' % x for x in both [:9])
+            '(0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8)'
+            >>> ','.join ('(%s,%s)' % x for x in both [9:])
+            '(0,8),(1,7),(2,6),(3,5),(4,4),(5,3),(6,2),(7,1),(8,0)'
         """
         if row == col :
             for r in range (9) :
@@ -288,28 +228,19 @@ class Alternatives :
                 yield self.tile [(r, c)]
     # end def diagonal_iter
 
-    def quadrant_position_iter (self, row, col) :
+    def quadrant_pos_iter (self, row, col) :
         """ Iterate over tiles which have the same position in their quadrant.
             Used for an additional constraint for color sudokus.
             >>> a = Alternatives ()
-            >>> for t in a.quadrant_position_iter (1, 1) :
-            ...     t.pos
-            (1, 1)
-            (1, 4)
-            (1, 7)
-            (4, 1)
-            (4, 4)
-            (4, 7)
-            (7, 1)
-            (7, 4)
-            (7, 7)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_pos_iter (1, 1))
+            '(1,1),(1,4),(1,7),(4,1),(4,4),(4,7),(7,1),(7,4),(7,7)'
         """
         coloffs = col % 3
         rowoffs = row % 3
         for qrow in range (3) :
             for qcol in range (3) :
                 yield self.tile [(3 * qrow + rowoffs, 3 * qcol + coloffs)]
-    # end def quadrant_position_iter
+    # end def quadrant_pos_iter
 
     # related to solving:
 
