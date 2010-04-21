@@ -2,10 +2,11 @@
 
 import sys
 import time
-from   sets             import Set
-from   copy             import copy
-from   rsclib.autosuper import autosuper
-from   textwrap         import dedent
+from   sets                import Set
+from   copy                import copy
+from   rsclib.autosuper    import autosuper
+from   rsclib.iter_recipes import combinations
+from   textwrap            import dedent
 
 # these are used as indeces into a pos tuple (row, col)
 ROW = 0
@@ -79,10 +80,17 @@ class Alternatives :
     """
 
     def __init__ \
-        (self, puzzle = None, tile = None, solvable = True, diagonal = False) :
-        self.solvable = solvable
-        self.diagonal = diagonal
-        self.tile     = tile or {}
+        ( self
+        , puzzle           = None
+        , tile             = None
+        , solvable         = True
+        , diagonal         = False
+        , colorconstrained = False
+        ) :
+        self.solvable         = solvable
+        self.diagonal         = diagonal
+        self.colorconstrained = colorconstrained
+        self.tile             = tile or {}
         if tile :
             self.solved_by_n = dict ((n, Set ()) for n in range (1, 10))
             for t in self.tiles () :
@@ -90,7 +98,6 @@ class Alternatives :
                 if len (t) == 1 :
                     self.solved_by_n [t.get ()].add (t.pos)
             return
-        assert (puzzle)
         for r in range (9) :
             for c in range (9) :
                 self.tile [(r, c)] = Tile (self, r, c)
@@ -113,7 +120,11 @@ class Alternatives :
         for k, v in self.tile.iteritems () :
             tile [k] = v.copy ()
         return self.__class__ \
-            (tile = tile, solvable = self.solvable, diagonal = self.diagonal)
+            ( tile = tile
+            , solvable         = self.solvable
+            , diagonal         = self.diagonal
+            , colorconstrained = self.colorconstrained
+            )
     # end def copy
 
     def mark_solved (self, tile) :
@@ -144,6 +155,10 @@ class Alternatives :
             for s in self.diagonal_iter (*tile.pos) :
                 if s.row != row or s.col != col :
                     s.discard (val)
+        if self.colorconstrained :
+            for s in self.quadrant_position_iter (*tile.pos) :
+                if s.row != row or s.col != col :
+                    s.discard (val)
     # end def update
 
     # iterators:
@@ -154,18 +169,56 @@ class Alternatives :
     # end def tiles
 
     def col_iter (self, row, col) :
-        """ Iterate over all tiles in a col for a given row """
+        """ Iterate over all tiles in a given col
+            >>> a = Alternatives ()
+            >>> for t in a.col_iter (0, 0) :
+            ...     t.pos
+            (0, 0)
+            (0, 1)
+            (0, 2)
+            (0, 3)
+            (0, 4)
+            (0, 5)
+            (0, 6)
+            (0, 7)
+            (0, 8)
+        """
         return (self.tile [(row, col)] for col in range (9))
     # end def col_iter
         
     def row_iter (self, row, col) :
-        """ Iterate over all tiles in a row for a given col """
+        """ Iterate over all tiles in a given row
+            >>> a = Alternatives ()
+            >>> for t in a.row_iter (0, 0) :
+            ...     t.pos
+            (0, 0)
+            (1, 0)
+            (2, 0)
+            (3, 0)
+            (4, 0)
+            (5, 0)
+            (6, 0)
+            (7, 0)
+            (8, 0)
+        """
         return (self.tile [(row, col)] for row in range (9))
     # end def row_iter
 
     def quadrant_iter (self, row, col) :
         """ Iterate over all tiles in a quadrant.
             Coordinates are from one set in that quadrant.
+            >>> a = Alternatives ()
+            >>> for t in a.quadrant_iter (0, 0) :
+            ...     t.pos
+            (0, 0)
+            (0, 1)
+            (0, 2)
+            (1, 0)
+            (1, 1)
+            (1, 2)
+            (2, 0)
+            (2, 1)
+            (2, 2)
         """
         colstart = int (col / 3) * 3
         rowstart = int (row / 3) * 3
@@ -179,6 +232,51 @@ class Alternatives :
             If row, col isn't on a diagonal, iterator stops immediately.
             If row, col is on both diagonals, return all positions on
             diagonal. The center in that case is returned twice.
+            >>> a = Alternatives ()
+            >>> for t in a.diagonal_iter (1, 2) :
+            ...     t.pos
+            >>> for t in a.diagonal_iter (0, 0) :
+            ...     t.pos
+            (0, 0)
+            (1, 1)
+            (2, 2)
+            (3, 3)
+            (4, 4)
+            (5, 5)
+            (6, 6)
+            (7, 7)
+            (8, 8)
+            >>> for t in a.diagonal_iter (0, 8) :
+            ...     t.pos
+            (0, 8)
+            (1, 7)
+            (2, 6)
+            (3, 5)
+            (4, 4)
+            (5, 3)
+            (6, 2)
+            (7, 1)
+            (8, 0)
+            >>> for t in a.diagonal_iter (4, 4) :
+            ...     t.pos
+            (0, 0)
+            (1, 1)
+            (2, 2)
+            (3, 3)
+            (4, 4)
+            (5, 5)
+            (6, 6)
+            (7, 7)
+            (8, 8)
+            (0, 8)
+            (1, 7)
+            (2, 6)
+            (3, 5)
+            (4, 4)
+            (5, 3)
+            (6, 2)
+            (7, 1)
+            (8, 0)
         """
         if row == col :
             for r in range (9) :
@@ -189,6 +287,29 @@ class Alternatives :
                 c = 8 - r
                 yield self.tile [(r, c)]
     # end def diagonal_iter
+
+    def quadrant_position_iter (self, row, col) :
+        """ Iterate over tiles which have the same position in their quadrant.
+            Used for an additional constraint for color sudokus.
+            >>> a = Alternatives ()
+            >>> for t in a.quadrant_position_iter (1, 1) :
+            ...     t.pos
+            (1, 1)
+            (1, 4)
+            (1, 7)
+            (4, 1)
+            (4, 4)
+            (4, 7)
+            (7, 1)
+            (7, 4)
+            (7, 7)
+        """
+        coloffs = col % 3
+        rowoffs = row % 3
+        for qrow in range (3) :
+            for qcol in range (3) :
+                yield self.tile [(3 * qrow + rowoffs, 3 * qcol + coloffs)]
+    # end def quadrant_position_iter
 
     # related to solving:
 
@@ -302,19 +423,21 @@ class Alternatives :
 class Puzzle :
     def __init__ \
         ( self
-        , verbose  = True
-        , solvemax = 100
-        , do_time  = False
-        , diagonal = False
+        , verbose          = True
+        , solvemax         = 100
+        , do_time          = False
+        , diagonal         = False
+        , colorconstrained = False
         ) :
         x = [0] * 9
-        self.puzzle     = [copy (x) for i in range (9)]
-        self.solvecount = 0
-        self.verbose    = verbose
-        self.solvemax   = solvemax
-        self.do_time    = do_time
-        self.diagonal   = diagonal
-        self.runtime    = 0.0
+        self.puzzle           = [copy (x) for i in range (9)]
+        self.solvecount       = 0
+        self.verbose          = verbose
+        self.solvemax         = solvemax
+        self.do_time          = do_time
+        self.diagonal         = diagonal
+        self.colorconstrained = colorconstrained
+        self.runtime          = 0.0
     # end def __init__
 
     def set (self, x, y, value) :
@@ -337,8 +460,8 @@ class Puzzle :
 
     def as_tex (self, date = None, title = "", author = None) :
         """ Output as TeX code
-            FIXME: might want to paint diagonals grey (or yellow) when
-            diagonal is specified.
+            FIXME: might want to paint tiles when
+            colorconstrained is specified.
         """
         if not author :
             author = 'Sudoku-Maker by Ralf Schlatterbeck'
@@ -391,7 +514,13 @@ class Puzzle :
         self.solvecount = 0
         if self.do_time :
             before = time.time ()
-        self._solve (Alternatives (self.puzzle, diagonal = self.diagonal))
+        self._solve \
+            (Alternatives 
+                (self.puzzle
+                , diagonal         = self.diagonal
+                , colorconstrained = self.colorconstrained
+                )
+            )
         if self.do_time :
             self.runtime = time.time () - before
         if self.verbose :
@@ -437,6 +566,12 @@ if __name__ == "__main__" :
 
     cmd = OptionParser (version = "%%prog %s" % VERSION)
     cmd.add_option \
+        ( "-c", "--colorconstrained"
+        , dest    = "colorconstrained"
+        , help    = "Add color constraint"
+        , action  = "store_true"
+        )
+    cmd.add_option \
         ( "-d", "--diagonal"
         , dest    = "diagonal"
         , help    = "Add diagonality constraint"
@@ -462,9 +597,10 @@ if __name__ == "__main__" :
     elif len (args) == 1 :
         file = open (args [0])
     x = Puzzle \
-        ( diagonal = opt.diagonal
-        , do_time  = opt.do_time
-        , solvemax = opt.solvemax
+        ( diagonal         = opt.diagonal
+        , colorconstrained = opt.colorconstrained
+        , do_time          = opt.do_time
+        , solvemax         = opt.solvemax
         )
     x.from_file (file)
     #x.display   ()
