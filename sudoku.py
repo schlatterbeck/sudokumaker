@@ -7,9 +7,58 @@ from   rsclib.autosuper    import autosuper
 from   rsclib.iter_recipes import combinations
 from   textwrap            import dedent
 
-# these are used as indeces into a pos tuple (row, col)
-ROW = 0
-COL = 1
+class Statistics (autosuper) :
+    """ Accumulated statistics by depth """
+    by_depth  = {}
+    formats   = \
+        ( ('depth',         2)
+        , ('branches',      5)
+        , ('maxdepth',      2)
+        , ('infer_matches', 5)
+        , ('infer_stop',    5)
+        )
+
+    def __init__ (self, depth) :
+        self.depth         = depth
+        self.branches      = 0
+        self.infer_matches = 0
+        self.infer_stop    = 0
+        self.maxdepth      = 0
+        self.__class__.by_depth [depth] = self
+    # end def __init__
+
+    @classmethod
+    def display (cls) :
+        for d, s in sorted (cls.by_depth.iteritems ()) :
+            print s
+    # end def display
+
+    @classmethod
+    def update (cls, depth, **kw) :
+        s = cls.by_depth.get (depth)
+        if not s :
+            return
+        for k, v in kw.iteritems () :
+            setattr (s, k, getattr (s, k) + v)
+            if cls.cumulated :
+                c = cls.cumulated
+                if k != 'maxdepth' :
+                    setattr (c, k, getattr (c, k) + v)
+                c.maxdepth = max (c.maxdepth, depth)
+        s.maxdepth = 1
+    # end def update
+
+    def __repr__ (self) :
+        r = []
+        for k, l in self.formats :
+            r.append (('%s: %%(%s)%dd' % (k, k, l)) % self.__dict__)
+        return ' '.join (r)
+    # end def repr
+    __str__ = __repr__
+
+# end class Statistics
+
+Statistics.cumulated = Statistics (-1)
 
 class Tile (set, autosuper) :
     """ Class representing alternatives at a single tile position in a puzzle.
@@ -96,10 +145,12 @@ class Alternatives :
         , tile             = None
         , diagonal         = False
         , colorconstrained = False
+        , depth            = 0
         ) :
         self.solvable         = True
         self.diagonal         = diagonal
         self.colorconstrained = colorconstrained
+        self.depth            = depth
         self.pending          = set ()
         self.tile             = tile or {}
         if tile :
@@ -135,6 +186,7 @@ class Alternatives :
             ( tile = tile
             , diagonal         = self.diagonal
             , colorconstrained = self.colorconstrained
+            , depth            = self.depth + 1
             )
     # end def copy
 
@@ -309,6 +361,7 @@ class Alternatives :
                         if qbase [0] != qbase [1] : continue
                         if qoffs [0] == qoffs [1] or quadr [0] == quadr [1] :
                             self.solvable = False
+                            Statistics.update (self.depth, infer_stop = 1)
                             return
                         #print "Found: (%s,%s):%s, (%s,%s):%s" % \
                         #    ( v[i][0], v[i][1], puzzle [v[i][0]][v[i][1]]
@@ -331,9 +384,12 @@ class Alternatives :
                         if not found :
                             self.tile [v [i]].clear ()
                             self.solvable = False
+                            Statistics.update (self.depth, infer_stop = 1)
                             return
                         if found == 1 :
                             self.tile [(row, col)].set (n)
+                        if self.pending :
+                            Statistics.update (self.depth, infer_matches = 1)
                         self.update ()
                         if not self.solvable :
                             return
@@ -489,7 +545,7 @@ class Puzzle :
                 print "runtime: %s" % self.runtime
     # end def solve
 
-    def _solve (self, alt) :
+    def _solve (self, alt, depth = 0) :
         if self.solvecount >= self.solvemax :
             return
         if not alt.solvable :
@@ -510,13 +566,14 @@ class Puzzle :
                     print "Max. solutions (%d) reached" % self.solvemax
             return
         old = self.puzzle [v.row][v.col]
+        Statistics.update (depth, branches = len (v))
         for i in v :
             nalt = alt.copy ()
             self.puzzle [v.row][v.col] = i
             nalt.set    (v.row, v.col, i)
             #print v.row, v.col
             #self.display ()
-            self._solve (nalt)
+            self._solve (nalt, depth = depth + 1)
         self.puzzle [v.row][v.col] = old
     # end def _solve
 # end class Puzzle
@@ -546,6 +603,12 @@ if __name__ == "__main__" :
         , default = 100
         )
     cmd.add_option \
+        ( "-s", "--statistics"
+        , dest    = "do_stats"
+        , help    = "Runtime statistics"
+        , action  = "store_true"
+        )
+    cmd.add_option \
         ( "-t", "--time"
         , dest    = "do_time"
         , help    = "Runtime measurement"
@@ -557,6 +620,9 @@ if __name__ == "__main__" :
         cmd.error ("Only 1 argument accepted")
     elif len (args) == 1 :
         file = open (args [0])
+    if opt.do_stats :
+        for d in range (81) :
+            Statistics (d)
     x = Puzzle \
         ( diagonal         = opt.diagonal
         , colorconstrained = opt.colorconstrained
@@ -566,3 +632,5 @@ if __name__ == "__main__" :
     x.from_file (file)
     #x.display   ()
     x.solve     ()
+    if opt.do_stats :
+        Statistics.display ()
