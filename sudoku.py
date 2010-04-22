@@ -186,7 +186,7 @@ class Alternatives :
                 for s in self.quadrant_pos_iter (*tile.pos) :
                     if s.row != tile.row or s.col != tile.col :
                         s.discard (val)
-            self.pending.discard (tile)
+            assert (tile not in self.pending)
     # end def update
 
     # iterators:
