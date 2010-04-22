@@ -221,10 +221,8 @@ class Alternatives :
                 assert (not self.solvable)
                 return
             val = tile.get ()
-            for itn in self.iterator_names () :
-                iter  = getattr (self, itn)
-                idxer = getattr (self, itn + '_idx')
-                for s in iter (idxer (*tile.pos)) :
+            for n in self.iterator_names () :
+                for s in self.iterator (n) (self.indexer (n) (*tile.pos)) :
                     if s.row != tile.row or s.col != tile.col :
                         s.discard (val)
             assert (tile not in self.pending)
@@ -255,6 +253,14 @@ class Alternatives :
             if n.endswith ('_iter') :
                 yield n
     # end def iterator_names
+
+    def iterator (self, name) :
+        return getattr (self, name)
+    # end def iterator
+
+    def indexer (self, name) :
+        return getattr (self, name + '_idx')
+    # end def indexer
 
     def col_iter_idx (self, row, col) :
         return col
