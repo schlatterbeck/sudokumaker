@@ -2,7 +2,6 @@
 
 import sys
 import time
-from   sets                import Set
 from   copy                import copy
 from   rsclib.autosuper    import autosuper
 from   rsclib.iter_recipes import combinations
@@ -12,9 +11,9 @@ from   textwrap            import dedent
 ROW = 0
 COL = 1
 
-class Tile (Set, autosuper) :
+class Tile (set, autosuper) :
     """ Class representing alternatives at a single tile position in a puzzle.
-        This is basically a Set with some additional methods and
+        This is basically a set with some additional methods and
         variables to remember the position in the puzzle.
     """
     def __init__ (self, parent, row, col, iterable = None) :
@@ -40,8 +39,11 @@ class Tile (Set, autosuper) :
 
     def discard (self, val) :
         """ Discard val from possibilities """
+        l = len (self)
         self.__super.discard (val)
-        if len (self) == 1 :
+        if not len (self) :
+            self.parent.mark_unsolvable ()
+        elif len (self) == 1 and l != 1 :
             self.parent.mark_solved (self)
     # end def discard
 
@@ -53,9 +55,15 @@ class Tile (Set, autosuper) :
 
     def set (self, val) :
         """ Set tile to the sole possibility val """
-        self.clear ()
-        self.add   (val)
-        self.parent.mark_solved (self)
+        if val not in self :
+            self.clear ()
+            self.parent.mark_unsolvable ()
+        elif len (self) == 1 :
+            assert (self.get () == val)
+        else :
+            self.clear ()
+            self.add   (val)
+            self.parent.mark_solved (self)
     # end def set
 
     @property
@@ -68,8 +76,11 @@ class Tile (Set, autosuper) :
         return "Tile (row = %s, col = %s, %s)" \
             % (self.row, self.col, ''.join (sorted (str (x) for x in self)))
     # end def __repr__
-
     __str__ = __repr__
+
+    def __hash__ (self) :
+        return hash (self.pos)
+    # end def __hash__
 # end class Tile
 
 class Alternatives :
@@ -83,16 +94,16 @@ class Alternatives :
         ( self
         , puzzle           = None
         , tile             = None
-        , solvable         = True
         , diagonal         = False
         , colorconstrained = False
         ) :
-        self.solvable         = solvable
+        self.solvable         = True
         self.diagonal         = diagonal
         self.colorconstrained = colorconstrained
+        self.pending          = set ()
         self.tile             = tile or {}
         if tile :
-            self.solved_by_n = dict ((n, Set ()) for n in range (1, 10))
+            self.solved_by_n = dict ((n, set ()) for n in range (1, 10))
             for t in self.tiles () :
                 t.parent = self
                 if len (t) == 1 :
@@ -101,14 +112,14 @@ class Alternatives :
         for r in range (9) :
             for c in range (9) :
                 self.tile [(r, c)] = Tile (self, r, c)
-        self.solved_by_n = dict ((n, Set ()) for n in range (1, 10))
+        self.solved_by_n = dict ((n, set ()) for n in range (1, 10))
         if puzzle :
             for r in range (9) :
                 for c in range (9) :
                     if puzzle [r][c] :
-                        self.update (r, c, puzzle [r][c])
-            if self.solvable :
-                self.infer (puzzle)
+                        self.tile [(r, c)].set (puzzle [r][c])
+            self.update ()
+            self.infer  ()
         #print self
         #sys.stdout.flush ()
     # end def __init__
@@ -119,9 +130,9 @@ class Alternatives :
         tile = {}
         for k, v in self.tile.iteritems () :
             tile [k] = v.copy ()
+        assert (self.solvable)
         return self.__class__ \
             ( tile = tile
-            , solvable         = self.solvable
             , diagonal         = self.diagonal
             , colorconstrained = self.colorconstrained
             )
@@ -130,35 +141,52 @@ class Alternatives :
     def mark_solved (self, tile) :
         """ mark position as solved """
         self.solved_by_n [tile.get ()].add (tile.pos)
+        self.pending.add (tile)
     # end def mark_solved
 
-    def update (self, row, col, val) :
-        """ Update puzzle at position row, col with value val.
-            After update client should determine if still solvable.
+    def mark_unsolvable (self) :
+        self.solvable = False
+    # end def mark_unsolvable
+
+    def set (self, row, col, val) :
+        """ Set puzzle at position row, col to val.
+            Implicitly may update list of pending changes via callback
+            from tile
         """
-        if val not in self.tile [(row, col)] :
-            self.tile [(row, col)].clear ()
-            self.solvable = False
+        self.tile [(row, col)].set (val)
+        self.update ()
+        self.infer  ()
+    # end def set
+
+    def update (self) :
+        """ Update puzzle possibilities from pending changes
+        """
+        if not self.solvable :
             return
-        tile = self.tile [(row, col)]
-        tile.set (val)
-        for s in self.row_iter (*tile.pos) :
-            if s.row != row :
-                s.discard (val)
-        for s in self.col_iter (*tile.pos) :
-            if s.col != col :
-                s.discard (val)
-        for s in self.quadrant_iter (*tile.pos) :
-            if s.row != row or s.col != col :
-                s.discard (val)
-        if self.diagonal :
-            for s in self.diagonal_iter (*tile.pos) :
-                if s.row != row or s.col != col :
+        while self.pending :
+            tile = self.pending.pop ()
+            if not tile :
+                assert (not self.solvable)
+                return
+            val = tile.get ()
+            for s in self.row_iter (*tile.pos) :
+                if s.row != tile.row :
                     s.discard (val)
-        if self.colorconstrained :
-            for s in self.quadrant_pos_iter (*tile.pos) :
-                if s.row != row or s.col != col :
+            for s in self.col_iter (*tile.pos) :
+                if s.col != tile.col :
                     s.discard (val)
+            for s in self.quadrant_iter (*tile.pos) :
+                if s.row != tile.row or s.col != tile.col :
+                    s.discard (val)
+            if self.diagonal :
+                for s in self.diagonal_iter (*tile.pos) :
+                    if s.row != tile.row or s.col != tile.col :
+                        s.discard (val)
+            if self.colorconstrained :
+                for s in self.quadrant_pos_iter (*tile.pos) :
+                    if s.row != tile.row or s.col != tile.col :
+                        s.discard (val)
+            self.pending.discard (tile)
     # end def update
 
     # iterators:
@@ -244,7 +272,7 @@ class Alternatives :
 
     # related to solving:
 
-    def infer (self, puzzle) :
+    def infer (self) :
         """ We check for quadrants with same x or y coordinates if we can
             infer numbers in the third quadrant with the same x or y
             coordinate, respectively.
@@ -258,7 +286,8 @@ class Alternatives :
             of 3, so we can determine the third quadrant by subtracting
             the other two coordinates from 3.
         """
-        # FIXME: don't use puzzle
+        if not self.solvable :
+            return
         for n, v in self.solved_by_n.iteritems () :
             for idx in (0, 1) : # by row or by column
                 length = len (v)
@@ -278,9 +307,9 @@ class Alternatives :
                         #    (idx, qbase, qoffs, quadr)
                         # not in same quadrant row / quadrant col
                         if qbase [0] != qbase [1] : continue
-                        # violations: FIXME mark me invalid
                         if qoffs [0] == qoffs [1] or quadr [0] == quadr [1] :
-                            continue
+                            self.solvable = False
+                            return
                         #print "Found: (%s,%s):%s, (%s,%s):%s" % \
                         #    ( v[i][0], v[i][1], puzzle [v[i][0]][v[i][1]]
                         #    , v[j][0], v[j][1], puzzle [v[j][0]][v[j][1]]
@@ -295,19 +324,19 @@ class Alternatives :
                             if idx :
                                 r, c = c, r
                             #print "check: (%s,%s):%s:" % (r, c, puzzle [r][c]),
-                            if not puzzle [r][c] :
-                                if n in self.tile [(r, c)] :
-                                    found += 1
-                                    row = r
-                                    col = c
-                            elif puzzle [r][c] == n :
-                                found = -1
-                                break
-                            #print found
+                            if n in self.tile [(r, c)] :
+                                found += 1
+                                row = r
+                                col = c
                         if not found :
                             self.tile [v [i]].clear ()
+                            self.solvable = False
+                            return
                         if found == 1 :
                             self.tile [(row, col)].set (n)
+                        self.update ()
+                        if not self.solvable :
+                            return
     # end def infer
 
     def set_exclude (self) :
@@ -463,9 +492,11 @@ class Puzzle :
     def _solve (self, alt) :
         if self.solvecount >= self.solvemax :
             return
+        if not alt.solvable :
+            return
         v = None
         for x in alt.tiles () :
-            if not x : return # no solution
+            assert (x)
             if len (x) == 1 and not self.puzzle [x.row][x.col] or len (x) > 1 :
                 v = x
                 break
@@ -482,8 +513,7 @@ class Puzzle :
         for i in v :
             nalt = alt.copy ()
             self.puzzle [v.row][v.col] = i
-            nalt.update (v.row, v.col, i)
-            nalt.infer  (self.puzzle)
+            nalt.set    (v.row, v.col, i)
             #print v.row, v.col
             #self.display ()
             self._solve (nalt)
