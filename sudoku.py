@@ -221,21 +221,10 @@ class Alternatives :
                 assert (not self.solvable)
                 return
             val = tile.get ()
-            for s in self.row_iter (*tile.pos) :
-                if s.row != tile.row :
-                    s.discard (val)
-            for s in self.col_iter (*tile.pos) :
-                if s.col != tile.col :
-                    s.discard (val)
-            for s in self.quadrant_iter (*tile.pos) :
-                if s.row != tile.row or s.col != tile.col :
-                    s.discard (val)
-            if self.diagonal :
-                for s in self.diagonal_iter (*tile.pos) :
-                    if s.row != tile.row or s.col != tile.col :
-                        s.discard (val)
-            if self.colorconstrained :
-                for s in self.quadrant_pos_iter (*tile.pos) :
+            for itn in self.iterator_names () :
+                iter  = getattr (self, itn)
+                idxer = getattr (self, itn + '_idx')
+                for s in iter (idxer (*tile.pos)) :
                     if s.row != tile.row or s.col != tile.col :
                         s.discard (val)
             assert (tile not in self.pending)
@@ -248,78 +237,150 @@ class Alternatives :
         return sorted (self.tile.itervalues (), key = lambda x : x.key ())
     # end def tiles
 
-    def col_iter (self, row, col) :
-        """ Iterate over all tiles in a given col
-            >>> a = Alternatives ()
-            >>> ','.join ('(%s,%s)' % t.pos for t in a.col_iter (0, 0))
-            '(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)'
+    def iterator_names (self) :
+        """ Yield names of all iterator methods needed for computing
+            tile constraints
+            >>> a = Alternatives (diagonal = True, colorconstrained = True)
+            >>> for n in a.iterator_names () :
+            ...     n
+            'col_iter'
+            'diag_bltr_iter'
+            'diag_tlbr_iter'
+            'quadrant_iter'
+            'quadrant_pos_iter'
+            'row_iter'
+
         """
-        return (self.tile [(row, col)] for col in range (9))
-    # end def col_iter
-        
-    def row_iter (self, row, col) :
-        """ Iterate over all tiles in a given row
-            >>> a = Alternatives ()
-            >>> ','.join ('(%s,%s)' % t.pos for t in a.row_iter (0, 0))
+        for n in dir (self) :
+            if n.endswith ('_iter') :
+                yield n
+    # end def iterator_names
+
+    def col_iter_idx (self, row, col) :
+        return col
+    # end def col_iter_idx
+
+    def col_iter (self, col) :
+        """ Iterate over all tiles in a given col
+            >>> a   = Alternatives ()
+            >>> idx = a.col_iter_idx (0, 0)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.col_iter (idx))
             '(0,0),(1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0)'
         """
         return (self.tile [(row, col)] for row in range (9))
+    # end def col_iter
+        
+    def row_iter_idx (self, row, col) :
+        return row
+    # end def row_iter_idx
+
+    def row_iter (self, row) :
+        """ Iterate over all tiles in a given row
+            >>> a   = Alternatives ()
+            >>> idx = a.row_iter_idx (0, 0)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.row_iter (idx))
+            '(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(0,8)'
+        """
+        return (self.tile [(row, col)] for col in range (9))
     # end def row_iter
 
-    def quadrant_iter (self, row, col) :
+    def quadrant_iter_idx (self, row, col) :
+        return (int (row / 3), int (col / 3))
+    # end def quadrant_iter_idx
+
+    def quadrant_iter (self, idx) :
         """ Iterate over all tiles in a quadrant.
             Coordinates are from one set in that quadrant.
-            >>> a = Alternatives ()
-            >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_iter (0, 0))
+            >>> a   = Alternatives ()
+            >>> idx = a.quadrant_iter_idx (0, 0)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_iter (idx))
             '(0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2)'
+            >>> idx = a.quadrant_iter_idx (7, 0)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_iter (idx))
+            '(6,0),(6,1),(6,2),(7,0),(7,1),(7,2),(8,0),(8,1),(8,2)'
         """
-        colstart = int (col / 3) * 3
-        rowstart = int (row / 3) * 3
+        rowstart, colstart = (i * 3 for i in idx)
         for r in range (rowstart, rowstart + 3) :
             for c in range (colstart, colstart + 3) :
                 yield self.tile [(r, c)]
     # end def quadrant_iter
 
-    def diagonal_iter (self, row, col) :
-        """ Iterate over all tiles in the diagonal given by row, col.
+    def diag_bltr_iter_idx (self, row, col) :
+        """ return true if row, col is on diagonal from bottom left to
+            top right
+        """
+        if self.diagonal and row == 8 - col :
+            return True
+        return None
+    # end def diag_bltr_iter_idx
+
+    def diag_bltr_iter (self, idx) :
+        """ Iterate over all tiles in the diagonal from bottom left to
+            top right given by row, col.
             If row, col isn't on a diagonal, iterator stops immediately.
-            If row, col is on both diagonals, return all positions on
-            diagonal. The center in that case is returned twice.
-            >>> a = Alternatives ()
-            >>> for t in a.diagonal_iter (1, 2) :
+            >>> a = Alternatives (diagonal = True)
+            >>> for t in a.diag_bltr_iter (a.diag_bltr_iter_idx (0, 0)) :
             ...     t.pos
-            >>> ','.join ('(%s,%s)' % t.pos for t in a.diagonal_iter (0, 0))
-            '(0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8)'
-            >>> ','.join ('(%s,%s)' % t.pos for t in a.diagonal_iter (0, 8))
+            >>> idx = a.diag_bltr_iter_idx (0, 8)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.diag_bltr_iter (idx))
             '(0,8),(1,7),(2,6),(3,5),(4,4),(5,3),(6,2),(7,1),(8,0)'
-            >>> both = [t.pos for t in a.diagonal_iter (4, 4)]
-            >>> ','.join ('(%s,%s)' % x for x in both [:9])
-            '(0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8)'
-            >>> ','.join ('(%s,%s)' % x for x in both [9:])
+            >>> idx = a.diag_bltr_iter_idx (4, 4)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.diag_bltr_iter (idx))
             '(0,8),(1,7),(2,6),(3,5),(4,4),(5,3),(6,2),(7,1),(8,0)'
         """
-        if row == col :
-            for r in range (9) :
-                c = r
-                yield self.tile [(r, c)]
-        if row == 8 - col :
+        if idx :
             for r in range (9) :
                 c = 8 - r
                 yield self.tile [(r, c)]
-    # end def diagonal_iter
+    # end def diag_bltr_iter
 
-    def quadrant_pos_iter (self, row, col) :
+    def diag_tlbr_iter_idx (self, row, col) :
+        if self.diagonal and row == col :
+            return True
+        return None
+    # end def diag_tlbr_iter_idx
+
+    def diag_tlbr_iter (self, idx) :
+        """ Iterate over all tiles in the diagonal from top left to
+            bottom right given by row, col.
+            If row, col isn't on a diagonal, iterator stops immediately.
+            >>> a = Alternatives (diagonal = True)
+            >>> for t in a.diag_tlbr_iter (a.diag_tlbr_iter_idx (0, 8)) :
+            ...     t.pos
+            >>> idx = a.diag_tlbr_iter_idx (0, 0)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.diag_tlbr_iter (idx))
+            '(0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8)'
+            >>> idx = a.diag_tlbr_iter_idx (4, 4)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.diag_tlbr_iter (idx))
+            '(0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8)'
+        """
+        if idx :
+            for r in range (9) :
+                c = r
+                yield self.tile [(r, c)]
+    # end def diag_tlbr_iter
+
+    def quadrant_pos_iter_idx (self, row, col) :
+        if self.colorconstrained :
+            return (row % 3, col % 3)
+        return None
+    # end def quadrant_pos_iter_idx
+
+    def quadrant_pos_iter (self, idx) :
         """ Iterate over tiles which have the same position in their quadrant.
             Used for an additional constraint for color sudokus.
-            >>> a = Alternatives ()
-            >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_pos_iter (1, 1))
+            >>> a = Alternatives (colorconstrained = True)
+            >>> idx = a.quadrant_pos_iter_idx (1, 1)
+            >>> idx
+            (1, 1)
+            >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_pos_iter (idx))
             '(1,1),(1,4),(1,7),(4,1),(4,4),(4,7),(7,1),(7,4),(7,7)'
         """
-        coloffs = col % 3
-        rowoffs = row % 3
-        for qrow in range (3) :
-            for qcol in range (3) :
-                yield self.tile [(3 * qrow + rowoffs, 3 * qcol + coloffs)]
+        if idx :
+            rowoffs, coloffs = idx
+            for qrow in range (3) :
+                for qcol in range (3) :
+                    yield self.tile [(3 * qrow + rowoffs, 3 * qcol + coloffs)]
     # end def quadrant_pos_iter
 
     # related to solving:
@@ -395,6 +456,25 @@ class Alternatives :
                             return
     # end def infer
 
+    def invert (self, iter) :
+        """ For the given iterator build set of positions by number.
+            Then check by cardinality n of the set:
+                - if n == 0: not solvable
+                - n == 1 is uninteresting
+                - 1 < n < 4: check other iterators (quadrants etc.) if
+                  the items found are in same iterator (set
+                  intersection). If so, remove the number from all tiles
+                  in the other iterator, except for the ones in the
+                  intersection.
+        """
+        for k in range (9) :
+            numbers [k] = set ()
+        for tile in iter :
+            for n in tile :
+                numbers [n].add (tile.pos ())
+
+    # end def invert
+
     def set_exclude (self) :
         """ We check the tiles in one row, column or quadrant.
             If a single number is only in one of them, we remove all
@@ -426,7 +506,7 @@ class Alternatives :
         s = ['Alternatives:']
         for row in range (9) :
             x = []
-            for t in self.col_iter (row, 1) :
+            for t in self.row_iter (self.row_iter_idx (row, 1)) :
                 x.append ('%-9s' % ''.join (str (x) for x in sorted (t)))
             s.append (' '.join (x))
         return '\n'.join (s)
