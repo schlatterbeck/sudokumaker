@@ -6,25 +6,26 @@ from   copy                import copy
 from   rsclib.autosuper    import autosuper
 from   rsclib.iter_recipes import combinations
 from   textwrap            import dedent
+from   operator            import and_
 
-class Statistics (autosuper) :
+class Statistics (dict) :
     """ Accumulated statistics by depth """
     by_depth  = {}
     formats   = \
-        ( ('depth',         2)
-        , ('branches',      5)
-        , ('maxdepth',      2)
-        , ('infer_matches', 5)
-        , ('infer_stop',    5)
+        ( ('depth',          2)
+        , ('branches',       5)
+        , ('maxdepth',       2)
+        , ('infer_matches',  5)
+        , ('infer_stop',     5)
+        , ('invert_matches', 5)
+        , ('invert_stop',    5)
         )
 
     def __init__ (self, depth) :
-        self.depth         = depth
-        self.branches      = 0
-        self.infer_matches = 0
-        self.infer_stop    = 0
-        self.maxdepth      = 0
         self.__class__.by_depth [depth] = self
+        for k, v in self.formats :
+            self [k] = 0
+        self ['depth'] = depth
     # end def __init__
 
     @classmethod
@@ -39,19 +40,19 @@ class Statistics (autosuper) :
         if not s :
             return
         for k, v in kw.iteritems () :
-            setattr (s, k, getattr (s, k) + v)
+            s [k] += v
             if cls.cumulated :
                 c = cls.cumulated
                 if k != 'maxdepth' :
-                    setattr (c, k, getattr (c, k) + v)
-                c.maxdepth = max (c.maxdepth, depth)
-        s.maxdepth = 1
+                    c [k] += v
+                c ['maxdepth'] = max (c ['maxdepth'], depth)
+        s ['maxdepth'] = 1
     # end def update
 
     def __repr__ (self) :
         r = []
         for k, l in self.formats :
-            r.append (('%s: %%(%s)%dd' % (k, k, l)) % self.__dict__)
+            r.append (('%s: %%(%s)%dd' % (k, k, l)) % self)
         return ' '.join (r)
     # end def repr
     __str__ = __repr__
@@ -92,8 +93,10 @@ class Tile (set, autosuper) :
         self.__super.discard (val)
         if not len (self) :
             self.parent.mark_unsolvable ()
-        elif len (self) == 1 and l != 1 :
-            self.parent.mark_solved (self)
+        elif len (self) != l :
+            self.parent.mark_dirty (self)
+            if len (self) == 1 and l != 1 :
+                self.parent.mark_solved (self)
     # end def discard
 
     def get (self) :
@@ -112,6 +115,7 @@ class Tile (set, autosuper) :
         else :
             self.clear ()
             self.add   (val)
+            self.parent.mark_dirty  (self)
             self.parent.mark_solved (self)
     # end def set
 
@@ -152,6 +156,7 @@ class Alternatives :
         self.colorconstrained = colorconstrained
         self.depth            = depth
         self.pending          = set ()
+        self.dirty            = set ()
         self.tile             = tile or {}
         if tile :
             self.solved_by_n = dict ((n, set ()) for n in range (1, 10))
@@ -170,7 +175,8 @@ class Alternatives :
                     if puzzle [r][c] :
                         self.tile [(r, c)].set (puzzle [r][c])
             self.update ()
-            self.infer  ()
+            self.invert ()
+            #self.infer  ()
         #print self
         #sys.stdout.flush ()
     # end def __init__
@@ -190,6 +196,13 @@ class Alternatives :
             )
     # end def copy
 
+    def mark_dirty (self, tile) :
+        for n in self.iterator_names () :
+            idx = self.indexer (n) (*tile.pos)
+            if idx is not None :
+                self.dirty.add ((n, idx))
+    # end def mark_dirty
+
     def mark_solved (self, tile) :
         """ mark position as solved """
         self.solved_by_n [tile.get ()].add (tile.pos)
@@ -207,7 +220,8 @@ class Alternatives :
         """
         self.tile [(row, col)].set (val)
         self.update ()
-        self.infer  ()
+        self.invert ()
+        #self.infer  ()
     # end def set
 
     def update (self) :
@@ -462,23 +476,57 @@ class Alternatives :
                             return
     # end def infer
 
-    def invert (self, iter) :
+    def invert (self) :
         """ For the given iterator build set of positions by number.
             Then check by cardinality n of the set:
                 - if n == 0: not solvable
-                - n == 1 is uninteresting
-                - 1 < n < 4: check other iterators (quadrants etc.) if
+                - if n == 1: set tile to that number
+                - 2 <= n <= 4: check other iterators (quadrants etc.) if
                   the items found are in same iterator (set
                   intersection). If so, remove the number from all tiles
                   in the other iterator, except for the ones in the
                   intersection.
+                  In addition: if n == 1, set tile to the number
         """
-        for k in range (9) :
-            numbers [k] = set ()
-        for tile in iter :
-            for n in tile :
-                numbers [n].add (tile.pos ())
-
+        while self.solvable and self.dirty :
+            itername, idx = self.dirty.pop ()
+            numbers = {}
+            for k in range (1, 10) :
+                numbers [k] = set ()
+            for tile in self.iterator (itername) (idx) :
+                for num in tile :
+                    numbers [num].add (tile)
+            for n, tiles in sorted \
+                (numbers.iteritems (), key = lambda x : len (x [1])) :
+                l = len (tiles)
+                if not l :
+                    self.solvable = False
+                    Statistics.update (self.depth, invert_stop = 1)
+                    return
+                elif l == 1 :
+                    tile = tuple (tiles) [0]
+                    if len (tile) != 1 :
+                        Statistics.update (self.depth, invert_matches = 1)
+                    tile.set    (n)
+                    self.update ()
+                    continue
+                elif l > 3 :
+                    break
+                for n2 in self.iterator_names () :
+                    if n == n2 :
+                        continue
+                    indexer = self.indexer (n2)
+                    idxs = [indexer (*t.pos) for t in tiles]
+                    if not reduce \
+                        (and_, (idxs [0] == i for i in idxs [1:]), True) :
+                        continue
+                        for t in self.iterator (n2) (idxs [0]) :
+                            if t not in tiles :
+                                tl = len (t)
+                                t.discard (n)
+                                if tl != len (t) :
+                                    Statistics.update \
+                                        (self.depth, invert_matches = 1)
     # end def invert
 
     def set_exclude (self) :
