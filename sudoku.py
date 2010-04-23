@@ -15,8 +15,6 @@ class Statistics (dict) :
         ( ('depth',          2)
         , ('branches',       5)
         , ('maxdepth',       2)
-        , ('infer_matches',  5)
-        , ('infer_stop',     5)
         , ('invert_matches', 5)
         , ('invert_stop',    5)
         )
@@ -176,7 +174,6 @@ class Alternatives :
                         self.tile [(r, c)].set (puzzle [r][c])
             self.update ()
             self.invert ()
-            #self.infer  ()
         #print self
         #sys.stdout.flush ()
     # end def __init__
@@ -221,15 +218,12 @@ class Alternatives :
         self.tile [(row, col)].set (val)
         self.update ()
         self.invert ()
-        #self.infer  ()
     # end def set
 
     def update (self) :
         """ Update puzzle possibilities from pending changes
         """
-        if not self.solvable :
-            return
-        while self.pending :
+        while self.solvable and self.pending :
             tile = self.pending.pop ()
             if not tile :
                 assert (not self.solvable)
@@ -405,88 +399,17 @@ class Alternatives :
 
     # related to solving:
 
-    def infer (self) :
-        """ We check for quadrants with same x or y coordinates if we can
-            infer numbers in the third quadrant with the same x or y
-            coordinate, respectively.
-            If we find a unique match, we set the alternatives for this
-            match to the number found. If we find a discrepancy, we mark
-            one of the coordinates with the empty set.
-            For determining the coordinate of the third quadrant (and of
-            the second coordinate in the third quadrant) we make use of
-            the fact that quadrant coordinates are in the range [0:2] --
-            summing all coordinates for a quadrant always yields the sum
-            of 3, so we can determine the third quadrant by subtracting
-            the other two coordinates from 3.
-        """
-        if not self.solvable :
-            return
-        for n, v in self.solved_by_n.iteritems () :
-            for idx in (0, 1) : # by row or by column
-                length = len (v)
-                # sort by column or row, then row or column
-                v = tuple (sorted \
-                    (v, key = lambda x : (int (x [idx] / 3), x [1 - idx])))
-                #print "%s sorted: %s" % (n, v)
-                for i in range (length) :
-                    for j in range (i + 1, min (i + 2, length)) :
-                        # qbase is the quadrant row or col
-                        # qoffs is the row or col in that quadrant
-                        # quadr is the quadrant in the other direction
-                        qbase = [int (v [k][idx    ] / 3) for k in (i, j)]
-                        qoffs = [int (v [k][idx    ] % 3) for k in (i, j)]
-                        quadr = [int (v [k][1 - idx] / 3) for k in (i, j)]
-                        #print "idx: %s, qbase: %s, qoffs: %s, quadr: %s" % \
-                        #    (idx, qbase, qoffs, quadr)
-                        # not in same quadrant row / quadrant col
-                        if qbase [0] != qbase [1] : continue
-                        if qoffs [0] == qoffs [1] or quadr [0] == quadr [1] :
-                            self.solvable = False
-                            Statistics.update (self.depth, infer_stop = 1)
-                            return
-                        #print "Found: (%s,%s):%s, (%s,%s):%s" % \
-                        #    ( v[i][0], v[i][1], puzzle [v[i][0]][v[i][1]]
-                        #    , v[j][0], v[j][1], puzzle [v[j][0]][v[j][1]]
-                        #    )
-                        qbase = qbase [0] * 3
-                        qn    = qbase + 3 - qoffs [0] - qoffs [1]
-                        nq    =         3 - quadr [0] - quadr [1]
-                        found = 0
-                        row = col = -1
-                        for x in range (3) :
-                            r, c = qn, 3 * nq + x
-                            if idx :
-                                r, c = c, r
-                            #print "check: (%s,%s):%s:" % (r, c, puzzle [r][c]),
-                            if n in self.tile [(r, c)] :
-                                found += 1
-                                row = r
-                                col = c
-                        if not found :
-                            self.tile [v [i]].clear ()
-                            self.solvable = False
-                            Statistics.update (self.depth, infer_stop = 1)
-                            return
-                        if found == 1 :
-                            self.tile [(row, col)].set (n)
-                        if self.pending :
-                            Statistics.update (self.depth, infer_matches = 1)
-                        self.update ()
-                        if not self.solvable :
-                            return
-    # end def infer
-
     def invert (self) :
         """ For the given iterator build set of positions by number.
             Then check by cardinality n of the set:
-                - if n == 0: not solvable
+                - if n == 0: not solvable (number not possible)
                 - if n == 1: set tile to that number
                 - 2 <= n <= 4: check other iterators (quadrants etc.) if
                   the items found are in same iterator (set
                   intersection). If so, remove the number from all tiles
                   in the other iterator, except for the ones in the
-                  intersection.
-                  In addition: if n == 1, set tile to the number
+                  intersection. We don't do that for n == 1, we call
+                  self.update instead (which does the same)
         """
         while self.solvable and self.dirty :
             itername, idx = self.dirty.pop ()
@@ -527,6 +450,7 @@ class Alternatives :
                                 if tl != len (t) :
                                     Statistics.update \
                                         (self.depth, invert_matches = 1)
+            self.update ()
     # end def invert
 
     def set_exclude (self) :
