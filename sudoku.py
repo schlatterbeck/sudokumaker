@@ -17,6 +17,7 @@ class Statistics (dict) :
         , ('maxdepth',       2)
         , ('invert_matches', 5)
         , ('invert_stop',    5)
+        , ('number_sets',    2)
         )
 
     def __init__ (self, depth) :
@@ -400,7 +401,14 @@ class Alternatives :
     # related to solving:
 
     def invert (self) :
-        """ For the given iterator build set of positions by number.
+        """ We check the tiles in one row, column or quadrant.
+            If a single number is only in one of them, we remove all
+            other numbers from the Tile in that position.
+            Likewise: If two numbers are only in two tiles, remove all
+            other numbers from these two, and so on for three, four, ...
+            We record if changes were made, so the caller can decide to
+            call us again until nothing changes.
+            For the given iterator build set of positions by number.
             Then check by cardinality n of the set:
                 - if n == 0: not solvable (number not possible)
                 - if n == 1: set tile to that number
@@ -410,6 +418,11 @@ class Alternatives :
                   in the other iterator, except for the ones in the
                   intersection. We don't do that for n == 1, we call
                   self.update instead (which does the same)
+                - iterate over 2,3,... n-1 combinations of numbers and
+                  see if the union of possibilities is the same
+                  cardinality as our number of combinations. If so we
+                  can remove all other numbers from the tiles in the
+                  union.
         """
         while self.solvable and self.dirty :
             itername, idx = self.dirty.pop ()
@@ -450,21 +463,23 @@ class Alternatives :
                                 if tl != len (t) :
                                     Statistics.update \
                                         (self.depth, invert_matches = 1)
+            nums = [(n, s) for n, s in numbers.iteritems () if len (s) > 1]
+            for k in range (2, len (nums) - 1) :
+                for numset in combinations (nums, k) :
+                    ns = set ()
+                    se = set ()
+                    for n, s in numset :
+                        ns.add (n)
+                        se.update (s)
+                    if len (se) <= k :
+                        for tile in se :
+                            for number in tile.copy () :
+                                if number not in ns :
+                                    tile.discard (number)
+                                    Statistics.update \
+                                        (self.depth, number_sets = 1)
             self.update ()
     # end def invert
-
-    def set_exclude (self) :
-        """ We check the tiles in one row, column or quadrant.
-            If a single number is only in one of them, we remove all
-            other numbers from the Tile in that position.
-            Likewise: If two numbers are only in two tiles, remove all
-            other numbers from these two, and so on for three, four, ...
-            We record if changes were made, so the caller can decide to
-            call us again until nothing changes.
-        """
-        changed = False
-        return changed
-    # end def set_exclude
 
     def set_remove (self) :
         """ We check the tiles in one row, column or quadrant.
