@@ -2,7 +2,7 @@
     :height: 62
     :width: 210
     :alt: SourceForge.net Logo
-    :target: http://sourceforge.net/projects/rsclib
+    :target: http://sourceforge.net/projects/sudokumaker
 
 Sudoku Maker
 ============
@@ -55,6 +55,15 @@ parallel genetic algorithm library (pgapack) is needed. There is
 currently no Windows support for *pgapy* as it requires the pgapack
 library to be installed. For a skilled person it should be possible to
 get pgapack running on Windows, so if you're doing this, let me know.
+
+Version 0.2: README update
+
+The README (and the SF homepage which is generated from it) had wrong
+link to the project. Also the python package index didn't accept one of
+my classifier. Grmpf.
+
+ - Fix project link in README (SF Logo)
+ - Remove one classifier not accepted by pypi
 
 Version 0.1: Initial Release
 

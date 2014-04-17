@@ -69,6 +69,5 @@ setup \
         , 'Programming Language :: Python'
         , 'Topic :: Education'
         , 'Topic :: Games/Entertainment :: Puzzle Games'
-        , 'User Interface :: Textual :: Command-line'
         ]
     )
