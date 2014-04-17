@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
-# Copyright (C) 2008 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2008-13 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # All rights reserved
@@ -21,14 +21,20 @@
 # 02110-1301 USA
 # ****************************************************************************
 
+from warnings       import filterwarnings
 from distutils.core import setup
 try :
     from Version import VERSION
 except :
     VERSION = None
 
+filterwarnings \
+    ( "ignore"
+    , "Unknown distribution option: 'install_requires'"
+    )
+
 description = []
-f = open ('README')
+f = open ('README.rst')
 logo_stripped = False
 for line in f :
     if not logo_stripped and line.strip () :
@@ -41,7 +47,7 @@ license = 'GNU General Public License (GPL)'
 setup \
     ( name             = "sudokumaker"
     , version          = VERSION
-    , description      = "Genetic-Algorithm based Sudoku generator (not solver)"
+    , description      = "Genetic-Algorithm based Sudoku generator (and solver)"
     , long_description = ''.join (description)
     , license          = license
     , author           = "Ralf Schlatterbeck"
@@ -51,6 +57,7 @@ setup \
     , package_dir      = { 'sudokumaker' : '' }
     , platforms        = 'Any'
     , scripts          = ['sudoku_as_tex', 'sudokumaker']
+    , install_requires = ['pgapy']
     , classifiers      = \
         [ 'Development Status :: 4 - Beta'
         , 'Environment :: Console'

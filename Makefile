@@ -1,10 +1,18 @@
+# To use this Makefile, get a copy of my SF Release Tools
+# git clone git://git.code.sf.net/p/sfreleasetools/code sfreleasetools
+# And point the environment variable RELEASETOOLS to the checkout
+
+ifeq (,${RELEASETOOLS})
+    RELEASETOOLS=../releasetools
+endif
 PKG=sudokumaker
 PY=sudoku.py maker.py __init__.py
-SRC=Makefile MANIFEST.in setup.py README README.html $(PY)
+README=README.rst
+SRC=Makefile MANIFEST.in setup.py $(README) README.html $(PY)
 
 VERSIONPY=Version.py
 VERSION=$(VERSIONPY)
-LASTRELEASE:=$(shell ../svntools/lastrelease -n)
+LASTRELEASE:=$(shell $(RELEASETOOLS)/lastrelease -n)
 
 USERNAME=schlatterbeck
 PROJECT=sudokumaker
@@ -26,4 +34,4 @@ clean:
 	    Version.py Version.pyc ${CHANGES} ${NOTES}
 	rm -rf dist build
 
-include ../make/Makefile-sf
+include $(RELEASETOOLS)/Makefile-sf
