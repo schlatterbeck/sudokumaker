@@ -8,10 +8,19 @@ from pga              import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
                            , PGA_POPREPL_BEST
 
 class Sudoku_Maker (PGA, autosuper) :
-    def __init__ (self, srand = 42, verbose = False, do_time = False) :
+    def __init__ \
+        ( self
+        , srand            = 42
+        , verbose          = False
+        , do_time          = False
+        , colorconstrained = False
+        , diagonal         = False
+        ) :
         stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
-        self.verbose = verbose
-        self.do_time = do_time
+        self.verbose          = verbose
+        self.do_time          = do_time
+        self.diagonal         = diagonal
+        self.colorconstrained = colorconstrained
         PGA.__init__ \
             ( self
             , int # integer allele
@@ -29,7 +38,13 @@ class Sudoku_Maker (PGA, autosuper) :
     cache = {}
 
     def evaluate (self, p, pop) :
-        puzzle = Puzzle (verbose = False, solvemax = 50, do_time = self.do_time)
+        puzzle = Puzzle \
+            ( verbose          = False
+            , solvemax         = 50
+            , do_time          = self.do_time
+            , colorconstrained = self.colorconstrained
+            , diagonal         = self.diagonal
+            )
         count  = 0
         vals   = []
         for x in range (9) :
@@ -83,6 +98,18 @@ def main () :
 
     cmd = OptionParser (version = "%%prog %s" % VERSION)
     cmd.add_option \
+        ( "-c", "--colorconstrained"
+        , dest    = "colorconstrained"
+        , help    = "Add color constraint"
+        , action  = "store_true"
+        )
+    cmd.add_option \
+        ( "-d", "--diagonal"
+        , dest    = "diagonal"
+        , help    = "Add diagonality constraint"
+        , action  = "store_true"
+        )
+    cmd.add_option \
         ( "-r", "--random-seed"
         , dest    = "random_seed"
         , help    = "Numeric random seed, required argument"
@@ -106,7 +133,12 @@ def main () :
     if opt.random_seed is None :
         cmd.error ("-r or --random-seed option is required")
     maker = Sudoku_Maker \
-        (srand = opt.random_seed, verbose = opt.verbose, do_time = opt.do_time)
+        ( srand            = opt.random_seed
+        , verbose          = opt.verbose
+        , do_time          = opt.do_time
+        , colorconstrained = opt.colorconstrained
+        , diagonal         = opt.diagonal
+        )
     maker.run ()
 
 if __name__ == "__main__" :

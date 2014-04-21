@@ -549,8 +549,6 @@ class Puzzle :
 
     def as_tex (self, date = None, title = "", author = None) :
         """ Output as TeX code
-            FIXME: might want to paint tiles when
-            colorconstrained is specified.
         """
         if not author :
             author = 'Sudoku-Maker by Ralf Schlatterbeck'
@@ -559,7 +557,29 @@ class Puzzle :
         print dedent \
             (   r"""
                 \documentclass[12pt]{article}
-                \usepackage{color}
+                \usepackage{xcolor}
+                """
+            )
+        if self.colorconstrained :
+            print dedent \
+                (   r"""
+                    \definecolor{sred}{HTML}{B82144}
+                    \definecolor{spink}{HTML}{ED5FD5}
+                    \definecolor{sviolet}{HTML}{9E2EEE}
+                    \definecolor{sgrey}{HTML}{AAA7A1}
+                    \definecolor{sorange}{HTML}{F0AE24}
+                    \definecolor{syellow}{HTML}{E1E931}
+                    \definecolor{slgreen}{HTML}{7AEE3C}
+                    \definecolor{sdgreen}{HTML}{02B16B}
+                    \definecolor{sblue}{HTML}{44C6ED}
+                """
+                )
+            colors = [ ['sred',    'spink',   'sviolet']
+                     , ['sgrey',   'sorange', 'syellow']
+                     , ['slgreen', 'sdgreen', 'sblue']
+                     ]
+        print dedent \
+            (   r"""
                 \date{%s}
                 \author{%s}
                 \title{%s}
@@ -576,16 +596,23 @@ class Puzzle :
                      |@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|@{}}
                 """ % (date, author, title)
             )
+
         bgcolor = diagcolor = 'white'
+        bg = [bgcolor, bgcolor, bgcolor]
         if self.diagonal :
             diagcolor = 'yellow'
+        dg = [diagcolor, diagcolor, diagcolor]
         for r in range (9) :
             print r"\hline"
             if r % 3 == 0 and r :
                 print r"\hline"
+            if self.colorconstrained :
+                bg = colors [r % 3]
+                if not self.diagonal :
+                    dg = colors [r % 3]
             print '&'.join \
                 ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
-                % ([bgcolor, diagcolor][r == n or r == 8 - n], p or '')
+                % ([bg [n % 3], dg [n % 3]][r == n or r == 8 - n], p or '')
                   for n, p in enumerate (self.puzzle [r])
                 ),
             print r"\\"

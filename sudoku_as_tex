@@ -14,9 +14,15 @@ cmd.add_option \
     , help    = "Change default author info"
     )
 cmd.add_option \
+    ( "-c", "--colorconstrained"
+    , dest    = "colorconstrained"
+    , help    = "Add color constraint"
+    , action  = "store_true"
+    )
+cmd.add_option \
     ( "-d", "--diagonal"
     , dest    = "diagonal"
-    , help    = "Add diagonality coloring (FIXME: not yet implemented)"
+    , help    = "Add diagonality coloring"
     , action  = "store_true"
     )
 cmd.add_option \
@@ -36,7 +42,7 @@ elif len (args) == 1 :
 if opt.title :
     name = opt.title
 
-x = Puzzle  (diagonal = opt.diagonal)
+x = Puzzle  (diagonal = opt.diagonal, colorconstrained = opt.colorconstrained)
 x.from_file (file)
 x.as_tex    (title = name, author = opt.author)
 
