@@ -1,5 +1,5 @@
 #!/usr/bin/python
 
-from sudoku.maker import main
+from sudokumaker.maker import main
 
 main ()

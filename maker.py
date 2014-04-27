@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
 import sys
-from sudoku           import Puzzle
-from rsclib.autosuper import autosuper
-from pga              import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
-                           , PGA_STOP_NOCHANGE, PGA_REPORT_STRING \
-                           , PGA_POPREPL_BEST
+from sudokumaker.sudoku import Puzzle
+from rsclib.autosuper   import autosuper
+from pga                import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
+                             , PGA_STOP_NOCHANGE, PGA_REPORT_STRING \
+                             , PGA_POPREPL_BEST
 
 class Sudoku_Maker (PGA, autosuper) :
     def __init__ \

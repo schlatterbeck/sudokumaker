@@ -45,7 +45,7 @@ for line in f :
 license = 'GNU General Public License (GPL)'
 
 setup \
-    ( name             = "sudoku"
+    ( name             = "sudokumaker"
     , version          = VERSION
     , description      = "Genetic-Algorithm based Sudoku generator (and solver)"
     , long_description = ''.join (description)
@@ -53,11 +53,11 @@ setup \
     , author           = "Ralf Schlatterbeck"
     , author_email     = "rsc@runtux.com"
     , url              = "http://sudokumaker.sourceforge.net/"
-    , packages         = ['sudoku']
-    , package_dir      = { 'sudoku' : '' }
+    , packages         = ['sudokumaker']
+    , package_dir      = { 'sudokumaker' : '' }
     , platforms        = 'Any'
     , scripts          = ['sudoku_as_tex', 'sudokumaker']
-    , install_requires = ['pgapy']
+    , install_requires = ['pgapy', 'rsclib']
     , classifiers      = \
         [ 'Development Status :: 4 - Beta'
         , 'Environment :: Console'

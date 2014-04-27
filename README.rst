@@ -56,6 +56,13 @@ currently no Windows support for *pgapy* as it requires the pgapack
 library to be installed. For a skilled person it should be possible to
 get pgapack running on Windows, so if you're doing this, let me know.
 
+Version 0.4: Packaging fixes
+
+Fix package name again, stick to sudokumaker to avoid name collisions.
+
+ - Package namespace is now sudokumaker again
+ - Sudokumaker depends on rsclib.sourceforge.net
+
 Version 0.3: Color, Diagonal
 
 Now color constrained and diagonality constrained sudokus are supported.
