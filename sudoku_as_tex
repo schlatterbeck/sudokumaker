@@ -2,9 +2,9 @@
 
 import sys
 import os
-from   sudoku   import Puzzle
-from   optparse import OptionParser
-from   Version  import VERSION
+from   optparse       import OptionParser
+from   sudoku.sudoku  import Puzzle
+from   sudoku.Version import VERSION
 
 cmd    = OptionParser (version = "%%prog %s" % VERSION)
 
