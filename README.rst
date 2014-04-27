@@ -56,6 +56,16 @@ currently no Windows support for *pgapy* as it requires the pgapack
 library to be installed. For a skilled person it should be possible to
 get pgapack running on Windows, so if you're doing this, let me know.
 
+Version 0.3: Color, Diagonal
+
+Now color constrained and diagonality constrained sudokus are supported.
+
+ - Diagonality constrained sudokus must have the digits 1-9 in the
+   diagonals, too. When printing, diagonals are printed in yellow.
+ - Color constrained sudokus have 9 additional colors which are in the
+   same position in every quadrant. These must have the digits 1-9, too.
+   When printing we chose 9 different light colors.
+
 Version 0.2: README update
 
 The README (and the SF homepage which is generated from it) had wrong
