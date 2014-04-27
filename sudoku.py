@@ -148,15 +148,19 @@ class Alternatives :
         , tile             = None
         , diagonal         = False
         , colorconstrained = False
+        , kikagaku         = None
         , depth            = 0
         ) :
         self.solvable         = True
         self.diagonal         = diagonal
         self.colorconstrained = colorconstrained
         self.depth            = depth
+        self.kikagaku_idx     = None
         self.pending          = set ()
         self.dirty            = set ()
         self.tile             = tile or {}
+        if kikagaku :
+            self.init_kikagaku (kikagaku)
         if tile :
             self.solved_by_n = dict ((n, set ()) for n in range (1, 10))
             for t in self.tiles () :
@@ -193,6 +197,35 @@ class Alternatives :
             , depth            = self.depth + 1
             )
     # end def copy
+
+    def init_kikagaku (self, kikagaku) :
+        self.kikagaku_color = {}
+        self.kikagaku = []
+        self.kikagaku_idx = []
+        color_count = 0
+        for r in range (9) :
+            self.kikagaku_idx.append ([])
+            for c in range (9) :
+                self.kikagaku_idx [r].append (-1)
+                color = kikagaku [r][c]
+                if color not in self.kikagaku_color :
+                    if color_count > 8 :
+                        raise ValueError ("Too many kikagaku colors")
+                    self.kikagaku_color [color] = color_count
+                    color_count += 1
+                    self.kikagaku.append ([])
+                idx = self.kikagaku_color [color]
+                self.kikagaku [idx].append ((r, c))
+                self.kikagaku_idx [r][c] = idx
+        if len (self.kikagaku_idx) != 9 :
+            raise ValueError ("Not enough kikagaku colors")
+        assert len (self.kikagaku) == 9
+        for n, c in enumerate (self.kikagaku) :
+            if len (c) != 9 :
+                color = self.kikagaku_color [n]
+                raise ValueError \
+                    ("Invalid number of tiles in kikagaku color %s" % color)
+    # end def init_kikagaku
 
     def mark_dirty (self, tile) :
         for n in self.iterator_names () :
@@ -253,10 +286,10 @@ class Alternatives :
             'col_iter'
             'diag_bltr_iter'
             'diag_tlbr_iter'
+            'kikagaku_iter'
             'quadrant_iter'
             'quadrant_pos_iter'
             'row_iter'
-
         """
         for n in dir (self) :
             if n.endswith ('_iter') :
@@ -300,7 +333,8 @@ class Alternatives :
     # end def row_iter
 
     def quadrant_iter_idx (self, row, col) :
-        return (int (row / 3), int (col / 3))
+        if not self.kikagaku :
+            return (int (row / 3), int (col / 3))
     # end def quadrant_iter_idx
 
     def quadrant_iter (self, idx) :
@@ -314,11 +348,32 @@ class Alternatives :
             >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_iter (idx))
             '(6,0),(6,1),(6,2),(7,0),(7,1),(7,2),(8,0),(8,1),(8,2)'
         """
-        rowstart, colstart = (i * 3 for i in idx)
-        for r in range (rowstart, rowstart + 3) :
-            for c in range (colstart, colstart + 3) :
-                yield self.tile [(r, c)]
+        if not self.kikagaku :
+            rowstart, colstart = (i * 3 for i in idx)
+            for r in range (rowstart, rowstart + 3) :
+                for c in range (colstart, colstart + 3) :
+                    yield self.tile [(r, c)]
     # end def quadrant_iter
+
+    def kikagaku_iter_idx (self, row, col) :
+        """ Reverse lookup of kikagaku: return the index of the color
+            of this position.
+        """
+        if self.kikagaku_idx :
+            return self.kikagaku_idx [row][col]
+        return None
+    # end def kikagaku_iter_idx
+
+    def kikagaku_iter (self, idx) :
+        """ Iterate over the tiles of one color of a kikagaku.
+            Coordinates are explicitly stored when creating the
+            kikagaku.
+        """
+        if self.kikagaku :
+            assert 0 <= idx <= 8
+            for pos in self.kikagaku [idx] :
+                yield self.tile [pos]
+    # end def kikagaku_iter
 
     def diag_bltr_iter_idx (self, row, col) :
         """ return true if row, col is on diagonal from bottom left to
@@ -517,6 +572,7 @@ class Puzzle :
         , do_time          = False
         , diagonal         = False
         , colorconstrained = False
+        , kikagaku         = False
         ) :
         x = [0] * 9
         self.puzzle           = [copy (x) for i in range (9)]
@@ -526,7 +582,10 @@ class Puzzle :
         self.do_time          = do_time
         self.diagonal         = diagonal
         self.colorconstrained = colorconstrained
+        self.kikagaku         = None
         self.runtime          = 0.0
+        if kikagaku :
+            self.kikagaku     = [copy (x) for i in range (9)]
     # end def __init__
 
     def set (self, x, y, value) :
@@ -538,6 +597,11 @@ class Puzzle :
             line = file.readline ()
             for c in range (9) :
                 self.puzzle [r][c] = ord (line [c]) - ord ('0')
+        if self.kikagaku :
+            for r in range (9) :
+                line = file.readline ()
+                for c in range (9) :
+                    self.kikagaku [r][c] = line [c]
     # end def from_file
 
     def display (self) :
@@ -635,6 +699,7 @@ class Puzzle :
                 (self.puzzle
                 , diagonal         = self.diagonal
                 , colorconstrained = self.colorconstrained
+                , kikagaku         = self.kikagaku
                 )
             )
         if self.do_time :
@@ -696,6 +761,12 @@ if __name__ == "__main__" :
         , action  = "store_true"
         )
     cmd.add_option \
+        ( "-k", "--kikagaku"
+        , dest    = "kikagaku"
+        , help    = "Kikagaku with color areas, read additional color defs"
+        , action  = "store_true"
+        )
+    cmd.add_option \
         ( "-m", "--solvemax"
         , dest    = "solvemax"
         , help    = "Maximum number of solutions printed"
@@ -726,6 +797,7 @@ if __name__ == "__main__" :
     x = Puzzle \
         ( diagonal         = opt.diagonal
         , colorconstrained = opt.colorconstrained
+        , kikagaku         = opt.kikagaku
         , do_time          = opt.do_time
         , solvemax         = opt.solvemax
         )
