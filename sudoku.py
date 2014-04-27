@@ -563,15 +563,15 @@ class Puzzle :
         if self.colorconstrained :
             print dedent \
                 (   r"""
-                    \definecolor{sred}{HTML}{B82144}
-                    \definecolor{spink}{HTML}{ED5FD5}
-                    \definecolor{sviolet}{HTML}{9E2EEE}
-                    \definecolor{sgrey}{HTML}{AAA7A1}
-                    \definecolor{sorange}{HTML}{F0AE24}
-                    \definecolor{syellow}{HTML}{E1E931}
-                    \definecolor{slgreen}{HTML}{7AEE3C}
-                    \definecolor{sdgreen}{HTML}{02B16B}
-                    \definecolor{sblue}{HTML}{44C6ED}
+                    \definecolor{sred}{HTML}{FAB3BA}
+                    \definecolor{sviolet}{HTML}{EDD4FF}
+                    \definecolor{sgrey}{HTML}{DFDDD8}
+                    \definecolor{sorange}{HTML}{F3CE82}
+                    \definecolor{spink}{HTML}{F1A1DC}
+                    \definecolor{syellow}{HTML}{F6FC7B}
+                    \definecolor{slgreen}{HTML}{C8FBAE}
+                    \definecolor{sdgreen}{HTML}{99EECD}
+                    \definecolor{sblue}{HTML}{A4DFF2}
                 """
                 )
             colors = [ ['sred',    'spink',   'sviolet']
