@@ -30,8 +30,6 @@ dist: all
 	python setup.py sdist --formats=gztar,zip
 
 clean:
-	rm -f MANIFEST README.html default.css \
-	    Version.py Version.pyc ${CHANGES} ${NOTES}
-	rm -rf dist build
+	rm -rf default.css Version.py Version.pyc ${CLEAN}
 
 include $(RELEASETOOLS)/Makefile-sf
