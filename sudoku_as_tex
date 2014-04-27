@@ -26,6 +26,12 @@ cmd.add_option \
     , action  = "store_true"
     )
 cmd.add_option \
+    ( "-k", "--kikagaku"
+    , dest    = "kikagaku"
+    , help    = "Kikagaku with color areas, read additional color defs"
+    , action  = "store_true"
+    )
+cmd.add_option \
     ( "-t", "--title"
     , dest    = "title"
     , help    = "Change default title info (defaults to given filename)"
@@ -42,7 +48,11 @@ elif len (args) == 1 :
 if opt.title :
     name = opt.title
 
-x = Puzzle  (diagonal = opt.diagonal, colorconstrained = opt.colorconstrained)
+x = Puzzle  \
+    ( diagonal         = opt.diagonal
+    , colorconstrained = opt.colorconstrained
+    , kikagaku         = opt.kikagaku
+    )
 x.from_file (file)
 x.as_tex    (title = name, author = opt.author)
 

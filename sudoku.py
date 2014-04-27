@@ -624,7 +624,7 @@ class Puzzle :
                 \usepackage{xcolor}
                 """
             )
-        if self.colorconstrained :
+        if self.colorconstrained or self.kikagaku :
             print dedent \
                 (   r"""
                     \definecolor{sred}{HTML}{FAB3BA}
@@ -642,6 +642,24 @@ class Puzzle :
                      , ['sgrey',   'sorange', 'syellow']
                      , ['slgreen', 'sdgreen', 'sblue']
                      ]
+        if self.kikagaku :
+            colors = dict \
+                ( r = 'sred',    p = 'spink',   v = 'sviolet'
+                , g = 'sgrey',   o = 'sorange', y = 'syellow'
+                , l = 'slgreen', d = 'sdgreen', b = 'sblue'
+                )
+            kik_color = {}
+            col_idx   = {}
+            alt = Alternatives (self.puzzle, kikagaku = self.kikagaku)
+            for c, idx in alt.kikagaku_color.iteritems () :
+                if c in colors :
+                    kik_color [c] = colors [c]
+                    col_idx   [colors [c]] = idx
+            free = sorted ([c for c in colors.values () if c not in col_idx])
+            for c, idx in alt.kikagaku_color.iteritems () :
+                if c not in kik_color :
+                    kik_color [c] = free.pop ()
+
         print dedent \
             (   r"""
                 \date{%s}
@@ -668,17 +686,24 @@ class Puzzle :
         dg = [diagcolor, diagcolor, diagcolor]
         for r in range (9) :
             print r"\hline"
-            if r % 3 == 0 and r :
+            if r % 3 == 0 and r and not self.kikagaku :
                 print r"\hline"
             if self.colorconstrained :
                 bg = colors [r % 3]
                 if not self.diagonal :
                     dg = colors [r % 3]
-            print '&'.join \
-                ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
-                % ([bg [n % 3], dg [n % 3]][r == n or r == 8 - n], p or '')
-                  for n, p in enumerate (self.puzzle [r])
-                ),
+            if self.kikagaku :
+                print '&'.join \
+                    ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
+                    % (kik_color [self.kikagaku [r][c]], p or '')
+                      for c, p in enumerate (self.puzzle [r])
+                    )
+            else :
+                print '&'.join \
+                    ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
+                    % ([bg [n % 3], dg [n % 3]][r == n or r == 8 - n], p or '')
+                      for n, p in enumerate (self.puzzle [r])
+                    ),
             print r"\\"
         print dedent \
             (   r"""
