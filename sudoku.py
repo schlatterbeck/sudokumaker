@@ -159,6 +159,7 @@ class Alternatives :
         self.pending          = set ()
         self.dirty            = set ()
         self.tile             = tile or {}
+        self.kikagaku         = None
         if kikagaku :
             self.init_kikagaku (kikagaku)
         if tile :
