@@ -93,51 +93,49 @@ class Sudoku_Maker (PGA, autosuper) :
 # end class Sudoku_Maker
 
 def main () :
-    from optparse import OptionParser
+    from argparse import ArgumentParser
     from Version  import VERSION
 
-    cmd = OptionParser (version = "%%prog %s" % VERSION)
-    cmd.add_option \
+    cmd = ArgumentParser (version = "%%prog %s" % VERSION)
+    cmd.add_argument \
         ( "-c", "--colorconstrained"
         , dest    = "colorconstrained"
         , help    = "Add color constraint"
         , action  = "store_true"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-d", "--diagonal"
         , dest    = "diagonal"
         , help    = "Add diagonality constraint"
         , action  = "store_true"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-r", "--random-seed"
         , dest    = "random_seed"
         , help    = "Numeric random seed, required argument"
-        , type    = "int"
+        , type    = int
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-t", "--time"
         , dest    = "do_time"
         , help    = "Runtime measurement"
         , action  = "store_true"
         )
-    cmd.add_option \
-        ( "-v", "--verbose"
+    cmd.add_argument \
+        ( "-V", "--verbose"
         , dest    = "verbose"
         , help    = "Verbose output during search"
         , action  = "store_true"
         )
-    (opt, args) = cmd.parse_args ()
-    if len (args) :
-        cmd.error ("No arguments accepted")
-    if opt.random_seed is None :
+    args = cmd.parse_args ()
+    if args.random_seed is None :
         cmd.error ("-r or --random-seed option is required")
     maker = Sudoku_Maker \
-        ( srand            = opt.random_seed
-        , verbose          = opt.verbose
-        , do_time          = opt.do_time
-        , colorconstrained = opt.colorconstrained
-        , diagonal         = opt.diagonal
+        ( srand            = args.random_seed
+        , verbose          = args.verbose
+        , do_time          = args.do_time
+        , colorconstrained = args.colorconstrained
+        , diagonal         = args.diagonal
         )
     maker.run ()
 

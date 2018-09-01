@@ -770,65 +770,67 @@ class Puzzle :
 # end class Puzzle
 
 if __name__ == "__main__" :
-    from optparse import OptionParser
+    from argparse import ArgumentParser
     from Version  import VERSION
 
-    cmd = OptionParser (version = "%%prog %s" % VERSION)
-    cmd.add_option \
+    cmd = ArgumentParser (version = "%%prog %s" % VERSION)
+    cmd.add_argument \
+        ( "file"
+        , help    = "Filename of sudoku file (default stdin)"
+        )
+    cmd.add_argument \
         ( "-c", "--colorconstrained"
         , dest    = "colorconstrained"
         , help    = "Add color constraint"
         , action  = "store_true"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-d", "--diagonal"
         , dest    = "diagonal"
         , help    = "Add diagonality constraint"
         , action  = "store_true"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-k", "--kikagaku"
         , dest    = "kikagaku"
         , help    = "Kikagaku with color areas, read additional color defs"
         , action  = "store_true"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-m", "--solvemax"
         , dest    = "solvemax"
         , help    = "Maximum number of solutions printed"
-        , type    = "int"
+        , type    = int
         , default = 100
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-s", "--statistics"
         , dest    = "do_stats"
         , help    = "Runtime statistics"
         , action  = "store_true"
         )
-    cmd.add_option \
+    cmd.add_argument \
         ( "-t", "--time"
         , dest    = "do_time"
         , help    = "Runtime measurement"
         , action  = "store_true"
         )
-    (opt, args) = cmd.parse_args ()
+    args = cmd.parse_args ()
     file = sys.stdin
-    if len (args) > 1 :
-        cmd.error ("Only 1 argument accepted")
-    elif len (args) == 1 :
-        file = open (args [0])
-    if opt.do_stats :
+    if args.file :
+        file = open (args.file)
+    if args.do_stats :
         for d in range (81) :
             Statistics (d)
     x = Puzzle \
-        ( diagonal         = opt.diagonal
-        , colorconstrained = opt.colorconstrained
-        , kikagaku         = opt.kikagaku
-        , do_time          = opt.do_time
-        , solvemax         = opt.solvemax
+        ( diagonal         = args.diagonal
+        , colorconstrained = args.colorconstrained
+        , kikagaku         = args.kikagaku
+        , do_time          = args.do_time
+        , solvemax         = args.solvemax
         )
     x.from_file (file)
     #x.display   ()
     x.solve     ()
-    if opt.do_stats :
+    if args.do_stats :
         Statistics.display ()
