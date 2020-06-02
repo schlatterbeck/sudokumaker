@@ -1,9 +1,3 @@
-.. image:: http://sflogo.sourceforge.net/sflogo.php?group_id=212955&type=7
-    :height: 62
-    :width: 210
-    :alt: SourceForge.net Logo
-    :target: http://sourceforge.net/projects/sudokumaker
-
 Sudoku Maker
 ============
 
@@ -55,6 +49,14 @@ parallel genetic algorithm library (pgapack) is needed. There is
 currently no Windows support for *pgapy* as it requires the pgapack
 library to be installed. For a skilled person it should be possible to
 get pgapack running on Windows, so if you're doing this, let me know.
+
+Version 1.0: Mark as stable, Python3
+
+Now marked as Development Status Production/Stable
+
+ - Python3
+ - Stable
+ - Remove SF logo
 
 Version 0.4: Packaging fixes
 

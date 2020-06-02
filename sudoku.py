@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from   __future__ import print_function
 import sys
 import time
 from   copy                import copy
@@ -7,6 +8,7 @@ from   rsclib.autosuper    import autosuper
 from   rsclib.iter_recipes import combinations
 from   textwrap            import dedent
 from   operator            import and_
+from   functools           import reduce
 
 class Statistics (dict) :
     """ Accumulated statistics by depth """
@@ -29,8 +31,8 @@ class Statistics (dict) :
 
     @classmethod
     def display (cls) :
-        for d, s in sorted (cls.by_depth.iteritems ()) :
-            print s
+        for d, s in sorted (cls.by_depth.items ()) :
+            print (s)
     # end def display
 
     @classmethod
@@ -38,7 +40,7 @@ class Statistics (dict) :
         s = cls.by_depth.get (depth)
         if not s :
             return
-        for k, v in kw.iteritems () :
+        for k, v in kw.items () :
             s [k] += v
             if cls.cumulated :
                 c = cls.cumulated
@@ -180,7 +182,7 @@ class Alternatives :
                         self.tile [(r, c)].set (puzzle [r][c])
             self.update ()
             self.invert ()
-        #print self
+        #print (self)
         #sys.stdout.flush ()
     # end def __init__
 
@@ -188,7 +190,7 @@ class Alternatives :
         """ Copy constructor
         """
         tile = {}
-        for k, v in self.tile.iteritems () :
+        for k, v in self.tile.items () :
             tile [k] = v.copy ()
         assert (self.solvable)
         return self.__class__ \
@@ -489,7 +491,7 @@ class Alternatives :
                 for num in tile :
                     numbers [num].add (tile)
             for n, tiles in sorted \
-                (numbers.iteritems (), key = lambda x : len (x [1])) :
+                (numbers.items (), key = lambda x : len (x [1])) :
                 l = len (tiles)
                 if not l :
                     self.solvable = False
@@ -512,6 +514,7 @@ class Alternatives :
                     if not reduce \
                         (and_, (idxs [0] == i for i in idxs [1:]), True) :
                         continue
+                        # FIXME, this is almost certainly wrongly indented
                         for t in self.iterator (n2) (idxs [0]) :
                             if t not in tiles :
                                 tl = len (t)
@@ -519,7 +522,7 @@ class Alternatives :
                                 if tl != len (t) :
                                     Statistics.update \
                                         (self.depth, invert_matches = 1)
-            nums = [(n, s) for n, s in numbers.iteritems () if len (s) > 1]
+            nums = [(n, s) for n, s in numbers.items () if len (s) > 1]
             for k in range (2, len (nums) - 1) :
                 for numset in combinations (nums, k) :
                     ns = set ()
@@ -607,9 +610,11 @@ class Puzzle :
 
     def display (self) :
         for r in range (9) :
-            print ''.join \
-                ([chr (self.puzzle [r][c] + ord ('0')) for c in range (9)])
-        print
+            print \
+                (''.join \
+                    ([chr (self.puzzle [r][c] + ord ('0')) for c in range (9)])
+                )
+        print ()
     # end def display
 
     def as_tex (self, date = None, title = "", author = None) :
@@ -619,25 +624,29 @@ class Puzzle :
             author = 'Sudoku-Maker by Ralf Schlatterbeck'
         if not date :
             date = time.strftime ('%Y-%m-%d')
-        print dedent \
-            (   r"""
-                \documentclass[12pt]{article}
-                \usepackage{xcolor}
-                """
+        print \
+            ( dedent
+                (   r"""
+                    \documentclass[12pt]{article}
+                    \usepackage{xcolor}
+                    """
+                )
             )
         if self.colorconstrained or self.kikagaku :
-            print dedent \
-                (   r"""
-                    \definecolor{sred}{HTML}{FAB3BA}
-                    \definecolor{sviolet}{HTML}{EDD4FF}
-                    \definecolor{sgrey}{HTML}{DFDDD8}
-                    \definecolor{sorange}{HTML}{F3CE82}
-                    \definecolor{spink}{HTML}{F1A1DC}
-                    \definecolor{syellow}{HTML}{F6FC7B}
-                    \definecolor{slgreen}{HTML}{C8FBAE}
-                    \definecolor{sdgreen}{HTML}{99EECD}
-                    \definecolor{sblue}{HTML}{A4DFF2}
-                """
+            print \
+                ( dedent
+                    (   r"""
+                        \definecolor{sred}{HTML}{FAB3BA}
+                        \definecolor{sviolet}{HTML}{EDD4FF}
+                        \definecolor{sgrey}{HTML}{DFDDD8}
+                        \definecolor{sorange}{HTML}{F3CE82}
+                        \definecolor{spink}{HTML}{F1A1DC}
+                        \definecolor{syellow}{HTML}{F6FC7B}
+                        \definecolor{slgreen}{HTML}{C8FBAE}
+                        \definecolor{sdgreen}{HTML}{99EECD}
+                        \definecolor{sblue}{HTML}{A4DFF2}
+                    """
+                    )
                 )
             colors = [ ['sred',    'spink',   'sviolet']
                      , ['sgrey',   'sorange', 'syellow']
@@ -652,32 +661,34 @@ class Puzzle :
             kik_color = {}
             col_idx   = {}
             alt = Alternatives (self.puzzle, kikagaku = self.kikagaku)
-            for c, idx in alt.kikagaku_color.iteritems () :
+            for c, idx in alt.kikagaku_color.items () :
                 if c in colors :
                     kik_color [c] = colors [c]
                     col_idx   [colors [c]] = idx
             free = sorted ([c for c in colors.values () if c not in col_idx])
-            for c, idx in alt.kikagaku_color.iteritems () :
+            for c, idx in alt.kikagaku_color.items () :
                 if c not in kik_color :
                     kik_color [c] = free.pop ()
 
-        print dedent \
-            (   r"""
-                \date{%s}
-                \author{%s}
-                \title{%s}
-                \begin{document}
-                \maketitle
-                \thispagestyle{empty}
-                \Huge
-                \begin{center}
-                \newlength{\w}\setlength{\w}{3ex}
-                \setlength{\fboxsep}{0pt}
-                \begin{tabular}%%
-                 {@{}|@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|
-                     |@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|
-                     |@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|@{}}
-                """ % (date, author, title)
+        print \
+            ( dedent \
+                (   r"""
+                    \date{%s}
+                    \author{%s}
+                    \title{%s}
+                    \begin{document}
+                    \maketitle
+                    \thispagestyle{empty}
+                    \Huge
+                    \begin{center}
+                    \newlength{\w}\setlength{\w}{3ex}
+                    \setlength{\fboxsep}{0pt}
+                    \begin{tabular}%%
+                     {@{}|@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|
+                         |@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|
+                         |@{}p{\w}@{}|@{}p{\w}@{}|@{}p{\w}@{}|@{}}
+                    """ % (date, author, title)
+                )
             )
 
         bgcolor = diagcolor = 'white'
@@ -686,33 +697,42 @@ class Puzzle :
             diagcolor = 'yellow'
         dg = [diagcolor, diagcolor, diagcolor]
         for r in range (9) :
-            print r"\hline"
+            print (r"\hline")
             if r % 3 == 0 and r and not self.kikagaku :
-                print r"\hline"
+                print (r"\hline")
             if self.colorconstrained :
                 bg = colors [r % 3]
                 if not self.diagonal :
                     dg = colors [r % 3]
             if self.kikagaku :
-                print '&'.join \
-                    ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
-                    % (kik_color [self.kikagaku [r][c]], p or '')
-                      for c, p in enumerate (self.puzzle [r])
+                print \
+                    ('&'.join \
+                        ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
+                        % (kik_color [self.kikagaku [r][c]], p or '')
+                          for c, p in enumerate (self.puzzle [r])
+                        )
                     )
             else :
-                print '&'.join \
-                    ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
-                    % ([bg [n % 3], dg [n % 3]][r == n or r == 8 - n], p or '')
-                      for n, p in enumerate (self.puzzle [r])
-                    ),
-            print r"\\"
-        print dedent \
-            (   r"""
-                \hline
-                \end{tabular}
-                \end{center}
-                \end{document}
-                """
+                print \
+                    ( '&'.join \
+                        ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
+                        % ( [bg [n % 3], dg [n % 3]][r == n or r == 8 - n]
+                          , p or ''
+                          )
+                        for n, p in enumerate (self.puzzle [r])
+                        )
+                    , end = ' '
+                    )
+            print (r"\\")
+        print \
+            ( dedent \
+                (   r"""
+                    \hline
+                    \end{tabular}
+                    \end{center}
+                    \end{document}
+                    """
+                )
             )
     # end def as_tex
 
@@ -731,9 +751,9 @@ class Puzzle :
         if self.do_time :
             self.runtime = time.time () - before
         if self.verbose :
-            print "No (more) solutions"
+            print ("No (more) solutions")
             if self.do_time :
-                print "runtime: %s" % self.runtime
+                print ("runtime: %s" % self.runtime)
     # end def solve
 
     def _solve (self, alt, depth = 0) :
@@ -749,12 +769,12 @@ class Puzzle :
                 break
         if v is None :
             if self.verbose :
-                print "Solved (%s):" % (self.solvecount + 1)
+                print ("Solved (%s):" % (self.solvecount + 1))
                 self.display ()
             self.solvecount += 1
             if self.solvecount >= self.solvemax :
                 if self.verbose :
-                    print "Max. solutions (%d) reached" % self.solvemax
+                    print ("Max. solutions (%d) reached" % self.solvemax)
             return
         old = self.puzzle [v.row][v.col]
         Statistics.update (depth, branches = len (v))
@@ -762,7 +782,7 @@ class Puzzle :
             nalt = alt.copy ()
             self.puzzle [v.row][v.col] = i
             nalt.set    (v.row, v.col, i)
-            #print v.row, v.col
+            #print (v.row, v.col)
             #self.display ()
             self._solve (nalt, depth = depth + 1)
         self.puzzle [v.row][v.col] = old
@@ -773,7 +793,7 @@ if __name__ == "__main__" :
     from argparse import ArgumentParser
     from Version  import VERSION
 
-    cmd = ArgumentParser (version = "%%prog %s" % VERSION)
+    cmd = ArgumentParser ()
     cmd.add_argument \
         ( "file"
         , help    = "Filename of sudoku file (default stdin)"
@@ -814,6 +834,12 @@ if __name__ == "__main__" :
         , dest    = "do_time"
         , help    = "Runtime measurement"
         , action  = "store_true"
+        )
+    cmd.add_argument \
+        ( "-v", "--version"
+        , help    = "Display version"
+        , action  = "version"
+        , version = "%%(prog)s %s" % VERSION
         )
     args = cmd.parse_args ()
     file = sys.stdin

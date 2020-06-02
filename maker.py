@@ -1,4 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+
+from __future__ import print_function
 
 import sys
 from sudokumaker.sudoku import Puzzle
@@ -32,6 +34,7 @@ class Sudoku_Maker (PGA, autosuper) :
             , random_seed         = srand
             , print_options       = [PGA_REPORT_STRING]
             , stopping_rule_types = stop_on
+            , randomize_select    = True
             )
     # end def __init__
 
@@ -57,11 +60,11 @@ class Sudoku_Maker (PGA, autosuper) :
         vals = tuple (vals)
         if self.verbose :
             puzzle.display ()
-            print count,
+            print (count, end = ' ', file = self.file)
             sys.stdout.flush ()
         if vals in self.cache :
             if self.verbose :
-                print "H",
+                print ("H", end = ' ', file = self.file)
                 sys.stdout.flush ()
             solvecount = self.cache [vals]
         else :
@@ -69,9 +72,9 @@ class Sudoku_Maker (PGA, autosuper) :
             solvecount = puzzle.solvecount
             self.cache [vals] = solvecount
         if self.verbose :
-            print solvecount
+            print (solvecount, file = self.file)
             if puzzle.runtime :
-                print "runtime: %s" % puzzle.runtime
+                print ("runtime: %s" % puzzle.runtime, file = self.file)
             sys.stdout.flush ()
         if solvecount :
             if solvecount == 1 :
@@ -84,6 +87,7 @@ class Sudoku_Maker (PGA, autosuper) :
     # end def evaluate
 
     def print_string (self, file, p, pop) :
+        self.file    = file
         verbose      = self.verbose
         self.verbose = True
         self.evaluate (p, pop)
@@ -96,7 +100,7 @@ def main () :
     from argparse import ArgumentParser
     from Version  import VERSION
 
-    cmd = ArgumentParser (version = "%%prog %s" % VERSION)
+    cmd = ArgumentParser ()
     cmd.add_argument \
         ( "-c", "--colorconstrained"
         , dest    = "colorconstrained"
@@ -126,6 +130,12 @@ def main () :
         , dest    = "verbose"
         , help    = "Verbose output during search"
         , action  = "store_true"
+        )
+    cmd.add_argument \
+        ( "-v", "--version"
+        , help    = "Display version"
+        , action  = "version"
+        , version = "%%(prog)s %s" % VERSION
         )
     args = cmd.parse_args ()
     if args.random_seed is None :
