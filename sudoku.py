@@ -30,9 +30,11 @@ class Statistics (dict) :
     # end def __init__
 
     @classmethod
-    def display (cls) :
+    def display (cls, file = None) :
+        if file is None :
+            file = sys.stdout
         for d, s in sorted (cls.by_depth.items ()) :
-            print (s)
+            print (s, file = file)
     # end def display
 
     @classmethod
@@ -277,7 +279,7 @@ class Alternatives :
 
     def tiles (self) :
         """ Iterate over all tiles in the puzzle """
-        return sorted (self.tile.itervalues (), key = lambda x : x.key ())
+        return sorted (self.tile.values (), key = lambda x : x.key ())
     # end def tiles
 
     def iterator_names (self) :
@@ -608,13 +610,16 @@ class Puzzle :
                     self.kikagaku [r][c] = line [c]
     # end def from_file
 
-    def display (self) :
+    def display (self, file = None) :
+        if file is None :
+            file = sys.stdout
         for r in range (9) :
             print \
                 (''.join \
                     ([chr (self.puzzle [r][c] + ord ('0')) for c in range (9)])
+                , file = file
                 )
-        print ()
+        print (file = file)
     # end def display
 
     def as_tex (self, date = None, title = "", author = None) :

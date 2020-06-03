@@ -59,13 +59,13 @@ class Sudoku_Maker (PGA, autosuper) :
                 vals.append (val)
         vals = tuple (vals)
         if self.verbose :
-            puzzle.display ()
+            puzzle.display (self.file)
             print (count, end = ' ', file = self.file)
-            sys.stdout.flush ()
+            self.file.flush ()
         if vals in self.cache :
             if self.verbose :
                 print ("H", end = ' ', file = self.file)
-                sys.stdout.flush ()
+                self.file.flush ()
             solvecount = self.cache [vals]
         else :
             puzzle.solve ()
@@ -75,7 +75,7 @@ class Sudoku_Maker (PGA, autosuper) :
             print (solvecount, file = self.file)
             if puzzle.runtime :
                 print ("runtime: %s" % puzzle.runtime, file = self.file)
-            sys.stdout.flush ()
+            self.file.flush ()
         if solvecount :
             if solvecount == 1 :
                 eval = count
@@ -92,8 +92,10 @@ class Sudoku_Maker (PGA, autosuper) :
         self.verbose = True
         self.evaluate (p, pop)
         self.verbose = verbose
+        self.file.flush ()
         return self.__super.print_string (file, p, pop)
     # end def print_string
+
 # end class Sudoku_Maker
 
 def main () :
