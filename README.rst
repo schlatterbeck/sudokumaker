@@ -129,6 +129,11 @@ a step in the right direction: PGAPack is now bundled with *pgapy*.
 For a skilled person it should be possible to
 get PGAPack running on Windows, so if you're doing this, let me know.
 
+Version 1.1: Add licensing information
+
+- Add LICENSE file
+- insert license headers into python files where not yet present
+
 Version 1.0: Mark as stable, Python3
 
 Now marked as Development Status Production/Stable
