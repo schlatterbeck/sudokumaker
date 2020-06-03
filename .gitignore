@@ -18,6 +18,7 @@
 *.sud
 *.kik
 *.err
+*.ps
 *~
 .#*
 .*.swp

@@ -20,7 +20,9 @@ PACKAGE=${PKG}
 CHANGES=changes
 NOTES=notes
 HOSTNAME=shell.sourceforge.net
-PROJECTDIR=/home/groups/s/su/sudokumaker/htdocs
+PROJECTDIR=/home/groups/png256s/su/sudokumaker/htdocs
+GSOPT=-sDEVICE=ppmraw -dBATCH -r200 -dNOPAUSE
+GS=gs $(GSOPT)
 
 all: $(VERSION)
 
@@ -31,5 +33,26 @@ dist: all
 
 clean:
 	rm -rf default.css Version.py Version.pyc ${CLEAN}
+
+%.tex: %.sud
+	sudoku_as_tex $< > $@
+
+%.tex: %.sudd
+	sudoku_as_tex --diagonal  $< > $@
+
+%.tex: %.sudc
+	sudoku_as_tex --color  $< > $@
+
+%.tex: %.kik
+	sudoku_as_tex --kikagaku $< > $@
+
+%.ppm: %.tex
+	latex $<
+	dvips $$(basename $< .tex)
+	$(GS) -sOutputFile=$$(basename $< .tex).ppm $$(basename $< .tex).ps
+
+%.png: %.ppm
+	pnmcut -top 750 -bottom 1580 -left 400 -right 1310 < $< | \
+	pnmtopng > $@
 
 include $(RELEASETOOLS)/Makefile-sf
