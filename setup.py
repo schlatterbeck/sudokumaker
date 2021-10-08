@@ -44,7 +44,7 @@ setup \
     , license          = license
     , author           = "Ralf Schlatterbeck"
     , author_email     = "rsc@runtux.com"
-    , url              = "http://sudokumaker.sourceforge.net/"
+    , url              = "https://github.com/schlatterbeck/sudokumaker"
     , packages         = ['sudokumaker']
     , package_dir      = { 'sudokumaker' : '' }
     , platforms        = 'Any'
