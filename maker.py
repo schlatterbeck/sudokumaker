@@ -34,7 +34,6 @@ class Sudoku_Maker (pga.PGA, autosuper):
     def __init__ \
         ( self
         , srand            = 42
-        , verbose          = False
         , do_time          = False
         , colorconstrained = False
         , diagonal         = False
@@ -44,7 +43,6 @@ class Sudoku_Maker (pga.PGA, autosuper):
             , pga.PGA_STOP_MAXITER
             , pga.PGA_STOP_TOOSIMILAR
             ]
-        self.verbose          = verbose
         self.do_time          = do_time
         self.diagonal         = diagonal
         self.colorconstrained = colorconstrained
@@ -61,11 +59,34 @@ class Sudoku_Maker (pga.PGA, autosuper):
             , stopping_rule_types = stop_on
             , randomize_select    = True
             )
+        self.cache_hits = 0
     # end def __init__
 
     cache = {}
 
+    def endofgen (self):
+        pop = pga.PGA_NEWPOP
+        for p in range (self.pop_size):
+            assert self.get_evaluation_up_to_date (p, pop)
+            puzzle, vals = self.phenotype (p, pop)
+            if vals not in self.cache:
+                self.cache [vals] = self.get_evaluation (p, pop)
+    # end def endofgen
+
     def evaluate (self, p, pop):
+        puzzle, vals = self.phenotype (p, pop)
+        puzzle.solve ()
+        if puzzle.solvecount:
+            if puzzle.solvecount == 1:
+                eval = puzzle.count
+            else:
+                eval = 1000 - puzzle.count + puzzle.solvecount
+        else:
+            eval = 1000 * puzzle.count * puzzle.count
+        return eval
+    # end def evaluate
+
+    def phenotype (self, p, pop):
         puzzle = Puzzle \
             ( verbose          = False
             , solvemax         = 50
@@ -73,53 +94,50 @@ class Sudoku_Maker (pga.PGA, autosuper):
             , colorconstrained = self.colorconstrained
             , diagonal         = self.diagonal
             )
-        count  = 0
         vals   = []
         for x in range (9):
             for y in range (9):
                 val    = self.get_allele (p, pop, 9 * x + y)
                 if val > 9:
                     val = 0
-                count += val != 0
                 puzzle.set (x, y, val)
                 vals.append (val)
         vals = tuple (vals)
-        if self.verbose:
-            puzzle.display (self.file)
-            print (count, end = ' ', file = self.file)
-            self.file.flush ()
-        if vals in self.cache:
-            if self.verbose:
-                print ("H", end = ' ', file = self.file)
-                self.file.flush ()
-            solvecount = self.cache [vals]
-        else:
-            puzzle.solve ()
-            solvecount = puzzle.solvecount
-            self.cache [vals] = solvecount
-        if self.verbose:
-            print (solvecount, file = self.file)
-            if puzzle.runtime:
-                print ("runtime: %s" % puzzle.runtime, file = self.file)
-            self.file.flush ()
-        if solvecount:
-            if solvecount == 1:
-                eval = count
-            else:
-                eval = 1000 - count + solvecount
-        else:
-            eval = 1000 * count * count
-        return eval
-    # end def evaluate
+        return puzzle, vals
+    # end def phenotype
+
+    def pre_eval (self, pop):
+        for p in range (self.pop_size):
+            if self.get_evaluation_up_to_date (p, pop):
+                continue
+            puzzle, vals = self.phenotype (p, pop)
+            if vals in self.cache:
+                self.set_evaluation (p, pop, self.cache [vals])
+                self.set_evaluation_up_to_date (p, pop, True)
+                self.cache_hits += 1
+    # end def pre_eval
 
     def print_string (self, file, p, pop):
-        self.file    = file
-        verbose      = self.verbose
-        self.verbose = True
-        self.evaluate (p, pop)
-        self.verbose = verbose
+        self.file = file
+        print ('Cache hits: %d' % self.cache_hits, file = file)
+        assert self.get_evaluation_up_to_date (p, pop)
+        puzzle, vals = self.phenotype (p, pop)
+        e = self.get_evaluation (p, pop)
+        if e >= 2000:
+            assert puzzle.count * puzzle.count * 1000 == e
+            solvecount = 0
+        elif e > 81:
+            solvecount = int (e - 1000 + puzzle.count)
+            assert solvecount == e - 1000 + puzzle.count
+        else:
+            assert e == puzzle.count
+            solvecount = 1
+        print \
+            ( 'Non-empty tiles: %d, solvecount: %d' % (puzzle.count, solvecount)
+            , file = file
+            )
+        puzzle.display (file)
         self.file.flush ()
-        return self.__super.print_string (file, p, pop)
     # end def print_string
 
 # end class Sudoku_Maker
@@ -141,19 +159,14 @@ def main ():
     cmd.add_argument \
         ( "-r", "--random-seed"
         , dest    = "random_seed"
-        , help    = "Numeric random seed, required argument"
+        , help    = "Numeric random seed, default=%(default)s"
         , type    = int
+        , default = 42
         )
     cmd.add_argument \
         ( "-t", "--time"
         , dest    = "do_time"
         , help    = "Runtime measurement"
-        , action  = "store_true"
-        )
-    cmd.add_argument \
-        ( "-V", "--verbose"
-        , dest    = "verbose"
-        , help    = "Verbose output during search"
         , action  = "store_true"
         )
     cmd.add_argument \
@@ -163,11 +176,8 @@ def main ():
         , version = "%%(prog)s %s" % VERSION
         )
     args = cmd.parse_args ()
-    if args.random_seed is None:
-        cmd.error ("-r or --random-seed option is required")
     maker = Sudoku_Maker \
         ( srand            = args.random_seed
-        , verbose          = args.verbose
         , do_time          = args.do_time
         , colorconstrained = args.colorconstrained
         , diagonal         = args.diagonal

@@ -612,19 +612,24 @@ class Puzzle:
         self.colorconstrained = colorconstrained
         self.kikagaku         = None
         self.runtime          = 0.0
+        self.count            = 0
         if kikagaku:
             self.kikagaku     = [copy (x) for i in range (9)]
     # end def __init__
 
     def set (self, x, y, value):
+        if self.puzzle [x][y] != 0:
+            self.count -= 1
         self.puzzle [x][y] = value
+        if self.puzzle [x][y] != 0:
+            self.count += 1
     # end def set
 
     def from_file (self, file):
         for r in range (9):
             line = file.readline ()
             for c in range (9):
-                self.puzzle [r][c] = ord (line [c]) - ord ('0')
+                self.set (r, c, ord (line [c]) - ord ('0'))
         if self.kikagaku:
             for r in range (9):
                 line = file.readline ()
