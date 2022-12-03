@@ -34,6 +34,7 @@ setup \
     ( name             = "sudokumaker"
     , version          = VERSION
     , description      = "Genetic-Algorithm based Sudoku generator (and solver)"
+    , long_description_content_type = 'text/x-rst'
     , long_description = description
     , license          = license
     , author           = "Ralf Schlatterbeck"
