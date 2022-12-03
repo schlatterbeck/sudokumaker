@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (C) 2005-2020 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2005-2022 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -23,13 +23,14 @@
 from __future__ import print_function
 
 import sys
-from sudokumaker.sudoku import Puzzle
-from rsclib.autosuper   import autosuper
-from pga                import PGA, PGA_STOP_TOOSIMILAR, PGA_STOP_MAXITER \
-                             , PGA_STOP_NOCHANGE, PGA_REPORT_STRING \
-                             , PGA_POPREPL_BEST
+import pga
+from sudokumaker.sudoku  import Puzzle
+from sudokumaker.Version import VERSION
+from rsclib.autosuper    import autosuper
+from argparse            import ArgumentParser
 
-class Sudoku_Maker (PGA, autosuper) :
+
+class Sudoku_Maker (pga.PGA, autosuper):
     def __init__ \
         ( self
         , srand            = 42
@@ -37,13 +38,17 @@ class Sudoku_Maker (PGA, autosuper) :
         , do_time          = False
         , colorconstrained = False
         , diagonal         = False
-        ) :
-        stop_on = [PGA_STOP_NOCHANGE, PGA_STOP_MAXITER, PGA_STOP_TOOSIMILAR]
+        ):
+        stop_on = \
+            [ pga.PGA_STOP_NOCHANGE
+            , pga.PGA_STOP_MAXITER
+            , pga.PGA_STOP_TOOSIMILAR
+            ]
         self.verbose          = verbose
         self.do_time          = do_time
         self.diagonal         = diagonal
         self.colorconstrained = colorconstrained
-        PGA.__init__ \
+        pga.PGA.__init__ \
             ( self
             , int # integer allele
             , 9 * 9
@@ -52,7 +57,7 @@ class Sudoku_Maker (PGA, autosuper) :
             , pop_size            = 500
             , num_replace         = 250
             , random_seed         = srand
-            , print_options       = [PGA_REPORT_STRING]
+            , print_options       = [pga.PGA_REPORT_STRING]
             , stopping_rule_types = stop_on
             , randomize_select    = True
             )
@@ -60,7 +65,7 @@ class Sudoku_Maker (PGA, autosuper) :
 
     cache = {}
 
-    def evaluate (self, p, pop) :
+    def evaluate (self, p, pop):
         puzzle = Puzzle \
             ( verbose          = False
             , solvemax         = 50
@@ -70,43 +75,44 @@ class Sudoku_Maker (PGA, autosuper) :
             )
         count  = 0
         vals   = []
-        for x in range (9) :
-            for y in range (9) :
+        for x in range (9):
+            for y in range (9):
                 val    = self.get_allele (p, pop, 9 * x + y)
-                if val > 9 : val = 0
+                if val > 9:
+                    val = 0
                 count += val != 0
                 puzzle.set (x, y, val)
                 vals.append (val)
         vals = tuple (vals)
-        if self.verbose :
+        if self.verbose:
             puzzle.display (self.file)
             print (count, end = ' ', file = self.file)
             self.file.flush ()
-        if vals in self.cache :
-            if self.verbose :
+        if vals in self.cache:
+            if self.verbose:
                 print ("H", end = ' ', file = self.file)
                 self.file.flush ()
             solvecount = self.cache [vals]
-        else :
+        else:
             puzzle.solve ()
             solvecount = puzzle.solvecount
             self.cache [vals] = solvecount
-        if self.verbose :
+        if self.verbose:
             print (solvecount, file = self.file)
-            if puzzle.runtime :
+            if puzzle.runtime:
                 print ("runtime: %s" % puzzle.runtime, file = self.file)
             self.file.flush ()
-        if solvecount :
-            if solvecount == 1 :
+        if solvecount:
+            if solvecount == 1:
                 eval = count
-            else :
+            else:
                 eval = 1000 - count + solvecount
-        else :
+        else:
             eval = 1000 * count * count
         return eval
     # end def evaluate
 
-    def print_string (self, file, p, pop) :
+    def print_string (self, file, p, pop):
         self.file    = file
         verbose      = self.verbose
         self.verbose = True
@@ -118,10 +124,7 @@ class Sudoku_Maker (PGA, autosuper) :
 
 # end class Sudoku_Maker
 
-def main () :
-    from argparse import ArgumentParser
-    from Version  import VERSION
-
+def main ():
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( "-c", "--colorconstrained"
@@ -160,7 +163,7 @@ def main () :
         , version = "%%(prog)s %s" % VERSION
         )
     args = cmd.parse_args ()
-    if args.random_seed is None :
+    if args.random_seed is None:
         cmd.error ("-r or --random-seed option is required")
     maker = Sudoku_Maker \
         ( srand            = args.random_seed
@@ -171,5 +174,5 @@ def main () :
         )
     maker.run ()
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
     main ()

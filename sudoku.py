@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Copyright (C) 2005-2020 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2005-2022 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -28,8 +28,11 @@ from   rsclib.iter_recipes import combinations
 from   textwrap            import dedent
 from   operator            import and_
 from   functools           import reduce
+from   argparse            import ArgumentParser
+from   sudokumaker.Version import VERSION
 
-class Statistics (dict) :
+
+class Statistics (dict):
     """ Accumulated statistics by depth """
     by_depth  = {}
     formats   = \
@@ -41,39 +44,39 @@ class Statistics (dict) :
         , ('number_sets',    2)
         )
 
-    def __init__ (self, depth) :
+    def __init__ (self, depth):
         self.__class__.by_depth [depth] = self
-        for k, v in self.formats :
+        for k, v in self.formats:
             self [k] = 0
         self ['depth'] = depth
     # end def __init__
 
     @classmethod
-    def display (cls, file = None) :
-        if file is None :
+    def display (cls, file = None):
+        if file is None:
             file = sys.stdout
-        for d, s in sorted (cls.by_depth.items ()) :
+        for d, s in sorted (cls.by_depth.items ()):
             print (s, file = file)
     # end def display
 
     @classmethod
-    def update (cls, depth, **kw) :
+    def update (cls, depth, **kw):
         s = cls.by_depth.get (depth)
-        if not s :
+        if not s:
             return
-        for k, v in kw.items () :
+        for k, v in kw.items ():
             s [k] += v
-            if cls.cumulated :
+            if cls.cumulated:
                 c = cls.cumulated
-                if k != 'maxdepth' :
+                if k != 'maxdepth':
                     c [k] += v
                 c ['maxdepth'] = max (c ['maxdepth'], depth)
         s ['maxdepth'] = 1
     # end def update
 
-    def __repr__ (self) :
+    def __repr__ (self):
         r = []
-        for k, l in self.formats :
+        for k, l in self.formats:
             r.append (('%s: %%(%s)%dd' % (k, k, l)) % self)
         return ' '.join (r)
     # end def repr
@@ -83,13 +86,13 @@ class Statistics (dict) :
 
 Statistics.cumulated = Statistics (-1)
 
-class Tile (set, autosuper) :
+class Tile (set, autosuper):
     """ Class representing alternatives at a single tile position in a puzzle.
         This is basically a set with some additional methods and
         variables to remember the position in the puzzle.
     """
-    def __init__ (self, parent, row, col, iterable = None) :
-        if iterable is None :
+    def __init__ (self, parent, row, col, iterable = None):
+        if iterable is None:
             iterable = range (1, 10)
         self.__super.__init__ (iterable)
         self.parent = parent
@@ -97,44 +100,44 @@ class Tile (set, autosuper) :
         self.col    = col
     # end def __init__
 
-    def key (self) :
+    def key (self):
         """ Key for sorting.
         """
         return len (self), self.row, self.col
     # end def key
 
-    def copy (self) :
+    def copy (self):
         """ Copy constructor
         """
         return self.__class__ (self.parent, self.row, self.col, self)
     # end def copy
 
-    def discard (self, val) :
+    def discard (self, val):
         """ Discard val from possibilities """
         l = len (self)
         self.__super.discard (val)
-        if not len (self) :
+        if not len (self):
             self.parent.mark_unsolvable ()
-        elif len (self) != l :
+        elif len (self) != l:
             self.parent.mark_dirty (self)
-            if len (self) == 1 and l != 1 :
+            if len (self) == 1 and l != 1:
                 self.parent.mark_solved (self)
     # end def discard
 
-    def get (self) :
+    def get (self):
         """ Get only item if there is only one """
         assert (len (self) == 1)
         return tuple (self) [0]
     # end def get
 
-    def set (self, val) :
+    def set (self, val):
         """ Set tile to the sole possibility val """
-        if val not in self :
+        if val not in self:
             self.clear ()
             self.parent.mark_unsolvable ()
-        elif len (self) == 1 :
+        elif len (self) == 1:
             assert (self.get () == val)
-        else :
+        else:
             self.clear ()
             self.add   (val)
             self.parent.mark_dirty  (self)
@@ -142,23 +145,23 @@ class Tile (set, autosuper) :
     # end def set
 
     @property
-    def pos (self) :
+    def pos (self):
         """ return position coordinates tuple """
         return (self.row, self.col)
     # end def pos
 
-    def __repr__ (self) :
+    def __repr__ (self):
         return "Tile (row = %s, col = %s, %s)" \
             % (self.row, self.col, ''.join (sorted (str (x) for x in self)))
     # end def __repr__
     __str__ = __repr__
 
-    def __hash__ (self) :
+    def __hash__ (self):
         return hash (self.pos)
     # end def __hash__
 # end class Tile
 
-class Alternatives :
+class Alternatives:
     """ Internal representation of a puzzle.
         We store the set of possibilities for each tile position.
         The inverse structure solved_by_n stores for each number the set
@@ -173,7 +176,7 @@ class Alternatives :
         , colorconstrained = False
         , kikagaku         = None
         , depth            = 0
-        ) :
+        ):
         self.solvable         = True
         self.diagonal         = diagonal
         self.colorconstrained = colorconstrained
@@ -183,23 +186,23 @@ class Alternatives :
         self.dirty            = set ()
         self.tile             = tile or {}
         self.kikagaku         = None
-        if kikagaku :
+        if kikagaku:
             self.init_kikagaku (kikagaku)
-        if tile :
+        if tile:
             self.solved_by_n = dict ((n, set ()) for n in range (1, 10))
-            for t in self.tiles () :
+            for t in self.tiles ():
                 t.parent = self
-                if len (t) == 1 :
+                if len (t) == 1:
                     self.solved_by_n [t.get ()].add (t.pos)
             return
-        for r in range (9) :
-            for c in range (9) :
+        for r in range (9):
+            for c in range (9):
                 self.tile [(r, c)] = Tile (self, r, c)
         self.solved_by_n = dict ((n, set ()) for n in range (1, 10))
-        if puzzle :
-            for r in range (9) :
-                for c in range (9) :
-                    if puzzle [r][c] :
+        if puzzle:
+            for r in range (9):
+                for c in range (9):
+                    if puzzle [r][c]:
                         self.tile [(r, c)].set (puzzle [r][c])
             self.update ()
             self.invert ()
@@ -207,11 +210,11 @@ class Alternatives :
         #sys.stdout.flush ()
     # end def __init__
 
-    def copy (self) :
+    def copy (self):
         """ Copy constructor
         """
         tile = {}
-        for k, v in self.tile.items () :
+        for k, v in self.tile.items ():
             tile [k] = v.copy ()
         assert (self.solvable)
         return self.__class__ \
@@ -222,18 +225,18 @@ class Alternatives :
             )
     # end def copy
 
-    def init_kikagaku (self, kikagaku) :
+    def init_kikagaku (self, kikagaku):
         self.kikagaku_color = {}
         self.kikagaku = []
         self.kikagaku_idx = []
         color_count = 0
-        for r in range (9) :
+        for r in range (9):
             self.kikagaku_idx.append ([])
-            for c in range (9) :
+            for c in range (9):
                 self.kikagaku_idx [r].append (-1)
                 color = kikagaku [r][c]
-                if color not in self.kikagaku_color :
-                    if color_count > 8 :
+                if color not in self.kikagaku_color:
+                    if color_count > 8:
                         raise ValueError ("Too many kikagaku colors")
                     self.kikagaku_color [color] = color_count
                     color_count += 1
@@ -241,34 +244,34 @@ class Alternatives :
                 idx = self.kikagaku_color [color]
                 self.kikagaku [idx].append ((r, c))
                 self.kikagaku_idx [r][c] = idx
-        if len (self.kikagaku_idx) != 9 :
+        if len (self.kikagaku_idx) != 9:
             raise ValueError ("Not enough kikagaku colors")
         assert len (self.kikagaku) == 9
-        for n, c in enumerate (self.kikagaku) :
-            if len (c) != 9 :
+        for n, c in enumerate (self.kikagaku):
+            if len (c) != 9:
                 color = self.kikagaku_color [n]
                 raise ValueError \
                     ("Invalid number of tiles in kikagaku color %s" % color)
     # end def init_kikagaku
 
-    def mark_dirty (self, tile) :
-        for n in self.iterator_names () :
+    def mark_dirty (self, tile):
+        for n in self.iterator_names ():
             idx = self.indexer (n) (*tile.pos)
-            if idx is not None :
+            if idx is not None:
                 self.dirty.add ((n, idx))
     # end def mark_dirty
 
-    def mark_solved (self, tile) :
+    def mark_solved (self, tile):
         """ mark position as solved """
         self.solved_by_n [tile.get ()].add (tile.pos)
         self.pending.add (tile)
     # end def mark_solved
 
-    def mark_unsolvable (self) :
+    def mark_unsolvable (self):
         self.solvable = False
     # end def mark_unsolvable
 
-    def set (self, row, col, val) :
+    def set (self, row, col, val):
         """ Set puzzle at position row, col to val.
             Implicitly may update list of pending changes via callback
             from tile
@@ -278,34 +281,34 @@ class Alternatives :
         self.invert ()
     # end def set
 
-    def update (self) :
+    def update (self):
         """ Update puzzle possibilities from pending changes
         """
-        while self.solvable and self.pending :
+        while self.solvable and self.pending:
             tile = self.pending.pop ()
-            if not tile :
+            if not tile:
                 assert (not self.solvable)
                 return
             val = tile.get ()
-            for n in self.iterator_names () :
-                for s in self.iterator (n) (self.indexer (n) (*tile.pos)) :
-                    if s.row != tile.row or s.col != tile.col :
+            for n in self.iterator_names ():
+                for s in self.iterator (n) (self.indexer (n) (*tile.pos)):
+                    if s.row != tile.row or s.col != tile.col:
                         s.discard (val)
             assert (tile not in self.pending)
     # end def update
 
     # iterators:
 
-    def tiles (self) :
+    def tiles (self):
         """ Iterate over all tiles in the puzzle """
-        return sorted (self.tile.values (), key = lambda x : x.key ())
+        return sorted (self.tile.values (), key = lambda x: x.key ())
     # end def tiles
 
-    def iterator_names (self) :
+    def iterator_names (self):
         """ Yield names of all iterator methods needed for computing
             tile constraints
             >>> a = Alternatives (diagonal = True, colorconstrained = True)
-            >>> for n in a.iterator_names () :
+            >>> for n in a.iterator_names ():
             ...     n
             'col_iter'
             'diag_bltr_iter'
@@ -315,24 +318,24 @@ class Alternatives :
             'quadrant_pos_iter'
             'row_iter'
         """
-        for n in dir (self) :
-            if n.endswith ('_iter') :
+        for n in dir (self):
+            if n.endswith ('_iter'):
                 yield n
     # end def iterator_names
 
-    def iterator (self, name) :
+    def iterator (self, name):
         return getattr (self, name)
     # end def iterator
 
-    def indexer (self, name) :
+    def indexer (self, name):
         return getattr (self, name + '_idx')
     # end def indexer
 
-    def col_iter_idx (self, row, col) :
+    def col_iter_idx (self, row, col):
         return col
     # end def col_iter_idx
 
-    def col_iter (self, col) :
+    def col_iter (self, col):
         """ Iterate over all tiles in a given col
             >>> a   = Alternatives ()
             >>> idx = a.col_iter_idx (0, 0)
@@ -342,11 +345,11 @@ class Alternatives :
         return (self.tile [(row, col)] for row in range (9))
     # end def col_iter
         
-    def row_iter_idx (self, row, col) :
+    def row_iter_idx (self, row, col):
         return row
     # end def row_iter_idx
 
-    def row_iter (self, row) :
+    def row_iter (self, row):
         """ Iterate over all tiles in a given row
             >>> a   = Alternatives ()
             >>> idx = a.row_iter_idx (0, 0)
@@ -356,12 +359,12 @@ class Alternatives :
         return (self.tile [(row, col)] for col in range (9))
     # end def row_iter
 
-    def quadrant_iter_idx (self, row, col) :
-        if not self.kikagaku :
+    def quadrant_iter_idx (self, row, col):
+        if not self.kikagaku:
             return (int (row / 3), int (col / 3))
     # end def quadrant_iter_idx
 
-    def quadrant_iter (self, idx) :
+    def quadrant_iter (self, idx):
         """ Iterate over all tiles in a quadrant.
             Coordinates are from one set in that quadrant.
             >>> a   = Alternatives ()
@@ -372,48 +375,48 @@ class Alternatives :
             >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_iter (idx))
             '(6,0),(6,1),(6,2),(7,0),(7,1),(7,2),(8,0),(8,1),(8,2)'
         """
-        if not self.kikagaku :
+        if not self.kikagaku:
             rowstart, colstart = (i * 3 for i in idx)
-            for r in range (rowstart, rowstart + 3) :
-                for c in range (colstart, colstart + 3) :
+            for r in range (rowstart, rowstart + 3):
+                for c in range (colstart, colstart + 3):
                     yield self.tile [(r, c)]
     # end def quadrant_iter
 
-    def kikagaku_iter_idx (self, row, col) :
+    def kikagaku_iter_idx (self, row, col):
         """ Reverse lookup of kikagaku: return the index of the color
             of this position.
         """
-        if self.kikagaku_idx :
+        if self.kikagaku_idx:
             return self.kikagaku_idx [row][col]
         return None
     # end def kikagaku_iter_idx
 
-    def kikagaku_iter (self, idx) :
+    def kikagaku_iter (self, idx):
         """ Iterate over the tiles of one color of a kikagaku.
             Coordinates are explicitly stored when creating the
             kikagaku.
         """
-        if self.kikagaku :
+        if self.kikagaku:
             assert 0 <= idx <= 8
-            for pos in self.kikagaku [idx] :
+            for pos in self.kikagaku [idx]:
                 yield self.tile [pos]
     # end def kikagaku_iter
 
-    def diag_bltr_iter_idx (self, row, col) :
+    def diag_bltr_iter_idx (self, row, col):
         """ return true if row, col is on diagonal from bottom left to
             top right
         """
-        if self.diagonal and row == 8 - col :
+        if self.diagonal and row == 8 - col:
             return True
         return None
     # end def diag_bltr_iter_idx
 
-    def diag_bltr_iter (self, idx) :
+    def diag_bltr_iter (self, idx):
         """ Iterate over all tiles in the diagonal from bottom left to
             top right given by row, col.
             If row, col isn't on a diagonal, iterator stops immediately.
             >>> a = Alternatives (diagonal = True)
-            >>> for t in a.diag_bltr_iter (a.diag_bltr_iter_idx (0, 0)) :
+            >>> for t in a.diag_bltr_iter (a.diag_bltr_iter_idx (0, 0)):
             ...     t.pos
             >>> idx = a.diag_bltr_iter_idx (0, 8)
             >>> ','.join ('(%s,%s)' % t.pos for t in a.diag_bltr_iter (idx))
@@ -422,24 +425,24 @@ class Alternatives :
             >>> ','.join ('(%s,%s)' % t.pos for t in a.diag_bltr_iter (idx))
             '(0,8),(1,7),(2,6),(3,5),(4,4),(5,3),(6,2),(7,1),(8,0)'
         """
-        if idx :
-            for r in range (9) :
+        if idx:
+            for r in range (9):
                 c = 8 - r
                 yield self.tile [(r, c)]
     # end def diag_bltr_iter
 
-    def diag_tlbr_iter_idx (self, row, col) :
-        if self.diagonal and row == col :
+    def diag_tlbr_iter_idx (self, row, col):
+        if self.diagonal and row == col:
             return True
         return None
     # end def diag_tlbr_iter_idx
 
-    def diag_tlbr_iter (self, idx) :
+    def diag_tlbr_iter (self, idx):
         """ Iterate over all tiles in the diagonal from top left to
             bottom right given by row, col.
             If row, col isn't on a diagonal, iterator stops immediately.
             >>> a = Alternatives (diagonal = True)
-            >>> for t in a.diag_tlbr_iter (a.diag_tlbr_iter_idx (0, 8)) :
+            >>> for t in a.diag_tlbr_iter (a.diag_tlbr_iter_idx (0, 8)):
             ...     t.pos
             >>> idx = a.diag_tlbr_iter_idx (0, 0)
             >>> ','.join ('(%s,%s)' % t.pos for t in a.diag_tlbr_iter (idx))
@@ -448,19 +451,19 @@ class Alternatives :
             >>> ','.join ('(%s,%s)' % t.pos for t in a.diag_tlbr_iter (idx))
             '(0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8)'
         """
-        if idx :
-            for r in range (9) :
+        if idx:
+            for r in range (9):
                 c = r
                 yield self.tile [(r, c)]
     # end def diag_tlbr_iter
 
-    def quadrant_pos_iter_idx (self, row, col) :
-        if self.colorconstrained :
+    def quadrant_pos_iter_idx (self, row, col):
+        if self.colorconstrained:
             return (row % 3, col % 3)
         return None
     # end def quadrant_pos_iter_idx
 
-    def quadrant_pos_iter (self, idx) :
+    def quadrant_pos_iter (self, idx):
         """ Iterate over tiles which have the same position in their quadrant.
             Used for an additional constraint for color sudokus.
             >>> a = Alternatives (colorconstrained = True)
@@ -470,16 +473,16 @@ class Alternatives :
             >>> ','.join ('(%s,%s)' % t.pos for t in a.quadrant_pos_iter (idx))
             '(1,1),(1,4),(1,7),(4,1),(4,4),(4,7),(7,1),(7,4),(7,7)'
         """
-        if idx :
+        if idx:
             rowoffs, coloffs = idx
-            for qrow in range (3) :
-                for qcol in range (3) :
+            for qrow in range (3):
+                for qcol in range (3):
                     yield self.tile [(3 * qrow + rowoffs, 3 * qcol + coloffs)]
     # end def quadrant_pos_iter
 
     # related to solving:
 
-    def invert (self) :
+    def invert (self):
         """ We check the tiles in one row, column or quadrant.
             If a single number is only in one of them, we remove all
             other numbers from the Tile in that position.
@@ -503,65 +506,65 @@ class Alternatives :
                   can remove all other numbers from the tiles in the
                   union.
         """
-        while self.solvable and self.dirty :
+        while self.solvable and self.dirty:
             itername, idx = self.dirty.pop ()
             numbers = {}
-            for k in range (1, 10) :
+            for k in range (1, 10):
                 numbers [k] = set ()
-            for tile in self.iterator (itername) (idx) :
-                for num in tile :
+            for tile in self.iterator (itername) (idx):
+                for num in tile:
                     numbers [num].add (tile)
             for n, tiles in sorted \
-                (numbers.items (), key = lambda x : len (x [1])) :
+                (numbers.items (), key = lambda x: len (x [1])):
                 l = len (tiles)
-                if not l :
+                if not l:
                     self.solvable = False
                     Statistics.update (self.depth, invert_stop = 1)
                     return
-                elif l == 1 :
+                elif l == 1:
                     tile = tuple (tiles) [0]
-                    if len (tile) != 1 :
+                    if len (tile) != 1:
                         Statistics.update (self.depth, invert_matches = 1)
                     tile.set    (n)
                     self.update ()
                     continue
-                elif l > 3 :
+                elif l > 3:
                     break
-                for n2 in self.iterator_names () :
-                    if n == n2 :
+                for n2 in self.iterator_names ():
+                    if n == n2:
                         continue
                     indexer = self.indexer (n2)
                     idxs = [indexer (*t.pos) for t in tiles]
                     if not reduce \
-                        (and_, (idxs [0] == i for i in idxs [1:]), True) :
+                        (and_, (idxs [0] == i for i in idxs [1:]), True):
                         continue
                         # FIXME, this is almost certainly wrongly indented
-                        for t in self.iterator (n2) (idxs [0]) :
-                            if t not in tiles :
+                        for t in self.iterator (n2) (idxs [0]):
+                            if t not in tiles:
                                 tl = len (t)
                                 t.discard (n)
-                                if tl != len (t) :
+                                if tl != len (t):
                                     Statistics.update \
                                         (self.depth, invert_matches = 1)
             nums = [(n, s) for n, s in numbers.items () if len (s) > 1]
-            for k in range (2, len (nums) - 1) :
-                for numset in combinations (nums, k) :
+            for k in range (2, len (nums) - 1):
+                for numset in combinations (nums, k):
                     ns = set ()
                     se = set ()
-                    for n, s in numset :
+                    for n, s in numset:
                         ns.add (n)
                         se.update (s)
-                    if len (se) <= k :
-                        for tile in se :
-                            for number in tile.copy () :
-                                if number not in ns :
+                    if len (se) <= k:
+                        for tile in se:
+                            for number in tile.copy ():
+                                if number not in ns:
                                     tile.discard (number)
                                     Statistics.update \
                                         (self.depth, number_sets = 1)
             self.update ()
     # end def invert
 
-    def set_remove (self) :
+    def set_remove (self):
         """ We check the tiles in one row, column or quadrant.
             If there are two identical tiles with cardinality 2 we remove
             the numbers in that tile from all other tiles in that entity.
@@ -575,11 +578,11 @@ class Alternatives :
         return changed
     # end def set_remove
 
-    def __repr__ (self) :
+    def __repr__ (self):
         s = ['Alternatives:']
-        for row in range (9) :
+        for row in range (9):
             x = []
-            for t in self.row_iter (self.row_iter_idx (row, 1)) :
+            for t in self.row_iter (self.row_iter_idx (row, 1)):
                 x.append ('%-9s' % ''.join (str (x) for x in sorted (t)))
             s.append (' '.join (x))
         return '\n'.join (s)
@@ -589,7 +592,7 @@ class Alternatives :
 
 # end class Alternatives
 
-class Puzzle :
+class Puzzle:
     def __init__ \
         ( self
         , verbose          = True
@@ -598,7 +601,7 @@ class Puzzle :
         , diagonal         = False
         , colorconstrained = False
         , kikagaku         = False
-        ) :
+        ):
         x = [0] * 9
         self.puzzle           = [copy (x) for i in range (9)]
         self.solvecount       = 0
@@ -609,30 +612,30 @@ class Puzzle :
         self.colorconstrained = colorconstrained
         self.kikagaku         = None
         self.runtime          = 0.0
-        if kikagaku :
+        if kikagaku:
             self.kikagaku     = [copy (x) for i in range (9)]
     # end def __init__
 
-    def set (self, x, y, value) :
+    def set (self, x, y, value):
         self.puzzle [x][y] = value
     # end def set
 
-    def from_file (self, file) :
-        for r in range (9) :
+    def from_file (self, file):
+        for r in range (9):
             line = file.readline ()
-            for c in range (9) :
+            for c in range (9):
                 self.puzzle [r][c] = ord (line [c]) - ord ('0')
-        if self.kikagaku :
-            for r in range (9) :
+        if self.kikagaku:
+            for r in range (9):
                 line = file.readline ()
-                for c in range (9) :
+                for c in range (9):
                     self.kikagaku [r][c] = line [c]
     # end def from_file
 
-    def display (self, file = None) :
-        if file is None :
+    def display (self, file = None):
+        if file is None:
             file = sys.stdout
-        for r in range (9) :
+        for r in range (9):
             print \
                 (''.join \
                     ([chr (self.puzzle [r][c] + ord ('0')) for c in range (9)])
@@ -641,12 +644,12 @@ class Puzzle :
         print (file = file)
     # end def display
 
-    def as_tex (self, date = None, title = "", author = None) :
+    def as_tex (self, date = None, title = "", author = None):
         """ Output as TeX code
         """
-        if not author :
+        if not author:
             author = 'Sudoku-Maker by Ralf Schlatterbeck'
-        if not date :
+        if not date:
             date = time.strftime ('%Y-%m-%d')
         print \
             ( dedent
@@ -656,7 +659,7 @@ class Puzzle :
                     """
                 )
             )
-        if self.colorconstrained or self.kikagaku :
+        if self.colorconstrained or self.kikagaku:
             print \
                 ( dedent
                     (   r"""
@@ -676,7 +679,7 @@ class Puzzle :
                      , ['sgrey',   'sorange', 'syellow']
                      , ['slgreen', 'sdgreen', 'sblue']
                      ]
-        if self.kikagaku :
+        if self.kikagaku:
             colors = dict \
                 ( r = 'sred',    p = 'spink',   v = 'sviolet'
                 , g = 'sgrey',   o = 'sorange', y = 'syellow'
@@ -685,13 +688,13 @@ class Puzzle :
             kik_color = {}
             col_idx   = {}
             alt = Alternatives (self.puzzle, kikagaku = self.kikagaku)
-            for c, idx in alt.kikagaku_color.items () :
-                if c in colors :
+            for c, idx in alt.kikagaku_color.items ():
+                if c in colors:
                     kik_color [c] = colors [c]
                     col_idx   [colors [c]] = idx
             free = sorted ([c for c in colors.values () if c not in col_idx])
-            for c, idx in alt.kikagaku_color.items () :
-                if c not in kik_color :
+            for c, idx in alt.kikagaku_color.items ():
+                if c not in kik_color:
                     kik_color [c] = free.pop ()
 
         print \
@@ -717,18 +720,18 @@ class Puzzle :
 
         bgcolor = diagcolor = 'white'
         bg = [bgcolor, bgcolor, bgcolor]
-        if self.diagonal :
+        if self.diagonal:
             diagcolor = 'yellow'
         dg = [diagcolor, diagcolor, diagcolor]
-        for r in range (9) :
+        for r in range (9):
             print (r"\hline")
-            if r % 3 == 0 and r and not self.kikagaku :
+            if r % 3 == 0 and r and not self.kikagaku:
                 print (r"\hline")
-            if self.colorconstrained :
+            if self.colorconstrained:
                 bg = colors [r % 3]
-                if not self.diagonal :
+                if not self.diagonal:
                     dg = colors [r % 3]
-            if self.kikagaku :
+            if self.kikagaku:
                 print \
                     ('&'.join \
                         ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
@@ -736,7 +739,7 @@ class Puzzle :
                           for c, p in enumerate (self.puzzle [r])
                         )
                     )
-            else :
+            else:
                 print \
                     ( '&'.join \
                         ( r"\colorbox{%s}{\hbox to\w{\hfil\strut %s\hfil}}"
@@ -760,9 +763,9 @@ class Puzzle :
             )
     # end def as_tex
 
-    def solve (self) :
+    def solve (self):
         self.solvecount = 0
-        if self.do_time :
+        if self.do_time:
             before = time.time ()
         self._solve \
             (Alternatives 
@@ -772,37 +775,37 @@ class Puzzle :
                 , kikagaku         = self.kikagaku
                 )
             )
-        if self.do_time :
+        if self.do_time:
             self.runtime = time.time () - before
-        if self.verbose :
+        if self.verbose:
             print ("No (more) solutions")
-            if self.do_time :
+            if self.do_time:
                 print ("runtime: %s" % self.runtime)
     # end def solve
 
-    def _solve (self, alt, depth = 0) :
-        if self.solvecount >= self.solvemax :
+    def _solve (self, alt, depth = 0):
+        if self.solvecount >= self.solvemax:
             return
-        if not alt.solvable :
+        if not alt.solvable:
             return
         v = None
-        for x in alt.tiles () :
+        for x in alt.tiles ():
             assert (x)
-            if len (x) == 1 and not self.puzzle [x.row][x.col] or len (x) > 1 :
+            if len (x) == 1 and not self.puzzle [x.row][x.col] or len (x) > 1:
                 v = x
                 break
-        if v is None :
-            if self.verbose :
+        if v is None:
+            if self.verbose:
                 print ("Solved (%s):" % (self.solvecount + 1))
                 self.display ()
             self.solvecount += 1
-            if self.solvecount >= self.solvemax :
-                if self.verbose :
+            if self.solvecount >= self.solvemax:
+                if self.verbose:
                     print ("Max. solutions (%d) reached" % self.solvemax)
             return
         old = self.puzzle [v.row][v.col]
         Statistics.update (depth, branches = len (v))
-        for i in v :
+        for i in v:
             nalt = alt.copy ()
             self.puzzle [v.row][v.col] = i
             nalt.set    (v.row, v.col, i)
@@ -813,10 +816,7 @@ class Puzzle :
     # end def _solve
 # end class Puzzle
 
-if __name__ == "__main__" :
-    from argparse import ArgumentParser
-    from Version  import VERSION
-
+def main (argv = None):
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( "file"
@@ -865,12 +865,12 @@ if __name__ == "__main__" :
         , action  = "version"
         , version = "%%(prog)s %s" % VERSION
         )
-    args = cmd.parse_args ()
+    args = cmd.parse_args (argv)
     file = sys.stdin
-    if args.file :
+    if args.file:
         file = open (args.file)
-    if args.do_stats :
-        for d in range (81) :
+    if args.do_stats:
+        for d in range (81):
             Statistics (d)
     x = Puzzle \
         ( diagonal         = args.diagonal
@@ -882,5 +882,9 @@ if __name__ == "__main__" :
     x.from_file (file)
     #x.display   ()
     x.solve     ()
-    if args.do_stats :
+    if args.do_stats:
         Statistics.display ()
+# end def main
+
+if __name__ == '__main__':
+    main (sys.argv [1:])

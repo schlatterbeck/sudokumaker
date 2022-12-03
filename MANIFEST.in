@@ -1,5 +1,1 @@
 include README.rst
-include default.css
-include README.html
-include sudoku_as_tex
-include sudokumaker

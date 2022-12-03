@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 
+import sys
 from argparse import ArgumentParser
 
-def tryall (n, digitsum, exclude = (), include = (), mind = 1) :
+def tryall (n, digitsum, exclude = (), include = (), mind = 1):
     """ Yield all possible combinations of n digits that sum to digitsum
     >>> list (tryall (5, 15))
     [[1, 2, 3, 4, 5]]
@@ -22,17 +23,17 @@ def tryall (n, digitsum, exclude = (), include = (), mind = 1) :
     [[6, 8, 9]]
     """
     include = set (include)
-    for k in range (mind, 10) :
-        if k in exclude :
+    for k in range (mind, 10):
+        if k in exclude:
             continue
-        if (n == 1 and k == digitsum) :
+        if (n == 1 and k == digitsum):
             yield [k]
-        else :
-            for l in tryall (n - 1, digitsum - k, exclude, include, k + 1) :
-                if mind > 1 or include < set ([k] + l) :
+        else:
+            for l in tryall (n - 1, digitsum - k, exclude, include, k + 1):
+                if mind > 1 or include < set ([k] + l):
                     yield [k] + l
 
-def main () :
+def main (argv = None):
     cmd = ArgumentParser ()
     cmd.add_argument \
         ( 'ndigits'
@@ -62,5 +63,5 @@ def main () :
     print (list (tryall (args.ndigits, args.digitsum, args.exclude, args.include)))
 # end def main
 
-if __name__ == '__main__' :
-    main ()
+if __name__ == '__main__':
+    main (sys.argv [1:])

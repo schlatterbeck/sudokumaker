@@ -1,4 +1,6 @@
-# To use this Makefile, get a copy of my SF Release Tools
+# To use this Makefile, get a copy of my Release Tools
+# git clone git@github.com:schlatterbeck/releasetool.git
+# or from sourceforge:
 # git clone git://git.code.sf.net/p/sfreleasetools/code sfreleasetools
 # And point the environment variable RELEASETOOLS to the checkout
 
@@ -28,11 +30,9 @@ all: $(VERSION)
 
 $(VERSION): $(SRC)
 
-dist: all
-	python setup.py sdist --formats=gztar,zip
-
 clean:
 	rm -rf default.css Version.py Version.pyc ${CLEAN}
+	rm -rf ${CLEAN}
 
 %.tex: %.sud
 	sudoku_as_tex $< > $@
@@ -55,4 +55,4 @@ clean:
 	pnmcut -top 750 -bottom 1580 -left 400 -right 1310 < $< | \
 	pnmtopng > $@
 
-include $(RELEASETOOLS)/Makefile-sf
+include $(RELEASETOOLS)/Makefile-pyrelease

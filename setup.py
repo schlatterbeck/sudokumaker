@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2008-2020 Dr. Ralf Schlatterbeck Open Source Consulting.
+# Copyright (C) 2008-2022 Dr. Ralf Schlatterbeck Open Source Consulting.
 # Reichergasse 131, A-3411 Weidling.
 # Web: http://www.runtux.com Email: office@runtux.com
 # ****************************************************************************
@@ -19,19 +19,13 @@
 # 02110-1301, USA.
 # ****************************************************************************
 
-from warnings       import filterwarnings
-from distutils.core import setup
-try :
+from setuptools import setup
+try:
     from Version import VERSION
-except :
+except:
     VERSION = None
 
-filterwarnings \
-    ( "ignore"
-    , "Unknown distribution option: 'install_requires'"
-    )
-
-with open ('README.rst') as f :
+with open ('README.rst') as f:
     description = f.read ()
 
 license = 'GNU General Public License (GPL)'
@@ -48,7 +42,14 @@ setup \
     , packages         = ['sudokumaker']
     , package_dir      = { 'sudokumaker' : '' }
     , platforms        = 'Any'
-    , scripts          = ['sudoku_as_tex', 'sudokumaker']
+    , entry_points     = dict
+        ( console_scripts =
+            [ 'sudokumaker=sudokumaker.maker:main'
+            , 'sudoku=sudokumaker.sudoku:main'
+            , 'sudoku_as_tex=sudokumaker.sudoku_as_tex:main'
+            , 'sumsudoku=sudokumaker.sumsudoku:main'
+            ]
+        )
     , install_requires = ['pgapy', 'rsclib']
     , classifiers      = \
         [ 'Development Status :: 5 - Production/Stable'

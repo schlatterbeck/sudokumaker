@@ -19,6 +19,8 @@
 *.kik
 *.err
 *.ps
+*.pdf
+*.egg-info
 *~
 .#*
 .*.swp
